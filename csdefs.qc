@@ -268,6 +268,11 @@ const float STAT_IDEALPITCH = 25;
 const float STAT_PUNCHANGLE_X = 26;
 const float STAT_PUNCHANGLE_Y = 27;
 const float STAT_PUNCHANGLE_Z = 28;
+
+const float STAT_KICKANGLES_X = 45;
+const float STAT_KICKANGLES_Y = 46;
+const float STAT_KICKANGLES_Z = 47;
+
 const float SOLID_BBOX = 2;
 const float SOLID_BSP = 4;
 const float SOLID_NOT = 0;
@@ -357,7 +362,11 @@ const float IE_KEYUP		= 1;
 const float IE_MOUSEDELTA	= 2;
 const float IE_MOUSEABS		= 3;
 const float IE_JOYAXIS		= 6;
-const float VF_MIN = 1;const float VF_MIN_X = 2;const float VF_MIN_Y = 3;const float VF_SIZE = 4;const float VF_SIZE_X = 5;const float VF_SIZE_Y = 6;const float VF_VIEWPORT = 7;const float VF_FOV = 8;const float VF_FOV_X = 9;const float VF_FOV_Y = 10;const float VF_ORIGIN = 11;const float VF_ORIGIN_X = 12;const float VF_ORIGIN_Y = 13;const float VF_ORIGIN_Z = 14;const float VF_ANGLES = 15;const float VF_ANGLES_X = 16;const float VF_ANGLES_Y = 17;const float VF_ANGLES_Z = 18;const float VF_DRAWWORLD = 19;const float VF_DRAWENGINESBAR = 20;const float VF_DRAWCROSSHAIR = 21;QSSDEP("Query only") const float VF_MINDIST = 23;QSSDEP("Query only") const float VF_MAXDIST = 24;const float VF_CL_VIEWANGLES = 33;const float VF_CL_VIEWANGLES_X = 34;const float VF_CL_VIEWANGLES_Y = 35;const float VF_CL_VIEWANGLES_Z = 36;const float VF_ACTIVESEAT = 202; //stub - must only be set to 0const float VF_AFOV = 203;const float VF_SCREENVSIZE = 204;const float VF_SCREENPSIZE = 205;const float RF_VIEWMODEL = 1;const float RF_EXTERNALMODEL = 2;const float RF_DEPTHHACK = 4;const float RF_ADDITIVE = 8;const float RF_USEAXIS = 16;const float RF_NOSHADOW = 32;const float RF_WEIRDFRAMETIMES = 64;const float PRECACHE_PIC_FROMWAD = 1;const float PRECACHE_PIC_WRAP = 4;const float PRECACHE_PIC_MIPMAP = 8;const float PRECACHE_PIC_TEST = 512;const float SLIST_HOSTCACHEVIEWCOUNT = 0;const float SLIST_HOSTCACHETOTALCOUNT = 1;const float SLIST_SORTFIELD = 6;const float SLIST_SORTDESCENDING = 7;const float GGDI_GAMEDIR = 0;const float GGDI_LOADCOMMAND = 3;const float STAT_USER = 32;			/* Custom user stats start here (lower values are reserved for engine use). */
+const float VF_MIN = 1;const float VF_MIN_X = 2;const float VF_MIN_Y = 3;const float VF_SIZE = 4;const float VF_SIZE_X = 5;const float VF_SIZE_Y = 6;const float VF_VIEWPORT = 7;const float VF_FOV = 8;const float VF_FOV_X = 9;const float VF_FOV_Y = 10;const float VF_ORIGIN = 11;const float VF_ORIGIN_X = 12;const float VF_ORIGIN_Y = 13;const float VF_ORIGIN_Z = 14;const float VF_ANGLES = 15;const float VF_ANGLES_X = 16;const float VF_ANGLES_Y = 17;const float VF_ANGLES_Z = 18;const float VF_DRAWWORLD = 19;const float VF_DRAWENGINESBAR = 20;const float VF_DRAWCROSSHAIR = 21;QSSDEP("Query only") const float VF_MINDIST = 23;QSSDEP("Query only") const float VF_MAXDIST = 24;const float VF_CL_VIEWANGLES = 33;const float VF_CL_VIEWANGLES_X = 34;const float VF_CL_VIEWANGLES_Y = 35;const float VF_CL_VIEWANGLES_Z = 36;const float VF_ACTIVESEAT = 202; 
+const float RF_VIEWMODEL = 1;
+const float RF_DEPTHHACK = 4;
+
+//stub - must only be set to 0const float VF_AFOV = 203;const float VF_SCREENVSIZE = 204;const float VF_SCREENPSIZE = 205;const float RF_VIEWMODEL = 1;const float RF_EXTERNALMODEL = 2;const float RF_DEPTHHACK = 4;const float RF_ADDITIVE = 8;const float RF_USEAXIS = 16;const float RF_NOSHADOW = 32;const float RF_WEIRDFRAMETIMES = 64;const float PRECACHE_PIC_FROMWAD = 1;const float PRECACHE_PIC_WRAP = 4;const float PRECACHE_PIC_MIPMAP = 8;const float PRECACHE_PIC_TEST = 512;const float SLIST_HOSTCACHEVIEWCOUNT = 0;const float SLIST_HOSTCACHETOTALCOUNT = 1;const float SLIST_SORTFIELD = 6;const float SLIST_SORTDESCENDING = 7;const float GGDI_GAMEDIR = 0;const float GGDI_LOADCOMMAND = 3;const float STAT_USER = 32;			/* Custom user stats start here (lower values are reserved for engine use). */
 const float EV_VOID = 0;
 const float EV_STRING = 1;
 const float EV_FLOAT = 2;
@@ -386,6 +395,7 @@ const float EV_INTEGER = 8;
 .float pmove_flags;
 .float frame2;
 .float lerpfrac;
+.float lerptime;
 .float frame1time;
 .float frame2time;
 .float renderflags;
@@ -1153,3 +1163,4 @@ void(vector pos, vector sz, string pic, vector srcpos, vector srcsz, vector rgb,
 
 //Reset this back to normal.
 #pragma noref 0
+

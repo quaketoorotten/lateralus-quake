@@ -147,6 +147,10 @@ void() trigger_multiple =
 		precache_sound ("misc/trigger1.wav");
 		self.noise = "misc/trigger1.wav";
 	}
+	else if (self.noise)
+	{
+		precache_sound (self.noise);
+	}
 	
 	if (!self.wait)
 		self.wait = 0.2;
@@ -329,13 +333,22 @@ void(vector org) spawn_tfog =
 	s.nextthink = time + 0.2;
 	s.think = play_teleport;
 
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_TELEPORT);
-	WriteCoord (MSG_BROADCAST, org_x);
-	WriteCoord (MSG_BROADCAST, org_y);
-	WriteCoord (MSG_BROADCAST, org_z);
+	SpawnPentagram (org);
 };
 
+static void(vector o) SpawnPentagram =
+{
+	local entity e2 = spawn ();
+	setorigin(e2, o);
+	setmodel (e2, "progs/muzzleflash.spr");
+	//setsize (e2, '-32 -32 0', '32 32 88');
+	
+	e2.solid = SOLID_NOT;
+	e2.emiteffectnum = (particleeffectnum("TE_SUMMON"));
+	pointparticles (particleeffectnum("EF_SUMMONLIGHT"), o);
+	e2.think = SUB_Remove;
+	e2.nextthink = time + 0.8; 
+};
 
 void() tdeath_touch =
 {
@@ -349,7 +362,7 @@ void() tdeath_touch =
 			self.classname = "teledeath2";
 		if (self.owner.classname != "player")
 		{	// other monsters explode themselves
-			T_Damage (self.owner, self, self.origin, self, 50000, 0);
+			T_Damage (self.owner, self, self.origin, self, 999999, 0);
 			return;
 		}
 		
@@ -406,9 +419,6 @@ local vector	org;
 
 	SUB_UseTargets ();
 
-// put a tfog where the player was
-	spawn_tfog (other.origin);
-
 	t = find (world, targetname, self.target);
 	if (!t)
 		objerror ("couldn't find target");
@@ -428,11 +438,16 @@ local vector	org;
 		other.velocity = (v_forward * other.velocity_x) + (v_forward * other.velocity_y);
 		return;
 	}
+	vector teleorg = t.origin;
+	
+	if(other.mins_z == 0)
+	{
+		traceline (t.origin, t.origin + '0 0 -24', FALSE, self);
+		if (trace_fraction > 0)
+			teleorg_z = trace_endpos_z;
+	}
 
-	//if (other.mins_z == 0)
-	//	t.origin += '0 0 -24';
-
-	setorigin (other, t.origin);
+	setorigin (other, teleorg);
 	other.angles = t.mangle;
 	if (other.classname == "player")
 	{
@@ -443,8 +458,6 @@ local vector	org;
 		other.velocity = v_forward * 300;
 	}
 	other.flags = other.flags - other.flags & FL_ONGROUND;
-
-	dprint("hello i am here");
 };
 
 /*QUAKED info_teleport_destination (.5 .5 .5) (-8 -8 -8) (8 8 32)

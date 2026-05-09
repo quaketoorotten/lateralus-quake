@@ -31,7 +31,7 @@
 //
 entity self;
 entity other;
-entity world;
+entity world;  
 float time;
 float frametime;
 
@@ -302,12 +302,12 @@ float DAMAGE_AIM = 2;
 
 // items
 float IT_AXE = 4096;
-float IT_SHOTGUN = 1;
+float IT_SHOTGUN = 4;
 float IT_SUPER_SHOTGUN = 2;
 float IT_NAILGUN = 4;
 float IT_SUPER_NAILGUN = 8;
 float IT_GRENADE_LAUNCHER = 16;
-float IT_ROCKET_LAUNCHER = 64;
+float IT_ROCKET_LAUNCHER = 128;
 float IT_LIGHTNING = 32;
 float IT_EXTRA_WEAPON = 128;
 
@@ -684,29 +684,3 @@ string(string s) precache_file2 = #77; // registered version only
 void(entity e) setspawnparms = #78; // set parm1... to the
 									// values at level start
 									// for coop respawn
-
-//============================================================================
-
-//
-// subs.qc
-//
-void(vector tdest, float tspeed, void() func) SUB_CalcMove;
-void(entity ent, vector tdest, float tspeed, void() func) SUB_CalcMoveEnt;
-void(vector destangle, float tspeed, void() func) SUB_CalcAngleMove;
-void() SUB_CalcMoveDone;
-void() SUB_CalcAngleMoveDone;
-void() SUB_Null;
-void() SUB_UseTargets;
-void() SUB_Remove;
-
-//
-// combat.qc
-//
-void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float damage, float kick) T_Damage;
-
-
-float(entity e, float healamount, float ignore) T_Heal; // health function
-
-float(entity targ, entity inflictor) CanDamage;
-
-const float M_PI = 3.14159265358979323846;	/* Mathematica Pi constant. */ // yo why tf ts so short lemme make it longer

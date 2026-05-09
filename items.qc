@@ -44,6 +44,10 @@ void() PlaceItem =
 	self.velocity = '0 0 0';
 	self.origin_z = self.origin_z + 6;
 	oldz = self.origin_z;
+
+	if (self.classname == "dropped_item")
+		return;
+	
 	if (!droptofloor())
 	{
 		dprint ("Bonus item fell out of level at ");
@@ -69,15 +73,23 @@ void() StartItem =
 
 
 void(void() item) DropItem = 
-{
+{	
 	local entity en;
 	en = spawn();
 	en.origin = self.origin + '0 0 24';
-	en.velocity = self.velocity;
-	setorigin(en, en.origin);
+	//en.velocity = self.velocity;
+	//setorigin(en, self.origin + '0 0 24');
+
+	en.solid = SOLID_TRIGGER;
+	
 	en.think = item;
-	en.classname = en.classname;
+	en.classname = "dropped_item";
 	en.nextthink = time;
+
+	en.velocity = self.velocity;
+	en.flags &= ~FL_ONGROUND;
+
+	en.movetype = MOVETYPE_TOSS;
 }
 
 /*
@@ -103,8 +115,8 @@ float (entity e, float healamount, float ignore) T_Heal =
 	if ((!ignore) && (e.health >= other.max_health))
 		e.health = other.max_health;
 		
-	if (e.health > 250)
-		e.health = 250;
+	if (e.health > 200)
+		e.health = 200;
 	return 1;
 };
 
@@ -124,9 +136,9 @@ void() item_megahealth_rot;
 
 void() item_precaches = 
 {
-	precache_model("maps/b_bh10.bsp");
+	precache_model("progs/b_bh10.md3");
 	precache_model("maps/b_bh100.bsp");
-	precache_model("maps/b_bh25.bsp");
+	precache_model("progs/b_bh25.md3");
 
 	precache_sound("items/r_item1.wav");	
 	precache_sound("items/r_item2.wav");
@@ -138,19 +150,20 @@ void() item_precaches =
 	precache_model ("progs/g_machn.mdl");
 	precache_model ("progs/g_chain.mdl");
 	precache_model ("progs/g_rail.mdl");
+	precache_model ("progs/g_widowmaker.mdl");
 	precache_model ("progs/g_launch.mdl");
 	precache_model ("progs/g_rocket.mdl");
 	precache_model ("progs/g_hyperb.mdl");
 	precache_model ("progs/g_bfg.mdl");
 
-	precache_model ("maps/b_shell1.bsp");
-	precache_model ("maps/b_shell0.bsp");
-	precache_model ("maps/b_nail1.bsp");
-	precache_model ("maps/b_nail0.bsp");
-	precache_model ("maps/b_rock1.bsp");
-	precache_model ("maps/b_rock0.bsp");
-	precache_model ("maps/b_batt1.bsp");
-	precache_model ("maps/b_batt0.bsp");
+	precache_model ("progs/b_shell1.md3");
+	precache_model ("progs/b_shell0.md3");
+	precache_model ("progs/b_nail1.md3");
+	precache_model ("progs/b_nail0.md3");
+	precache_model ("progs/b_rock1.md3");
+	precache_model ("progs/b_rock0.md3");
+	precache_model ("progs/b_batt1.md3");
+	precache_model ("progs/b_batt0.md3");
 
 	precache_model2 ("progs/b_s_key.mdl");
 	precache_model ("progs/m_s_key.mdl");
@@ -190,7 +203,7 @@ void() item_health =
 
 	if (self.spawnflags & H_ROTTEN)
 	{
-		setmodel(self, "maps/b_bh10.bsp");
+		setmodel(self, "progs/b_bh10.md3");
 		self.noise = "items/r_item1.wav";
 		self.healamount = 15;
 		self.healtype = 0;
@@ -205,7 +218,7 @@ void() item_health =
 	}
 	else
 	{
-		setmodel(self, "maps/b_bh25.bsp");
+		setmodel(self, "progs/b_bh25.md3");
 		self.noise = "items/health1.wav";
 		self.healamount = 25;
 		self.healtype = 1;
@@ -311,16 +324,6 @@ void() armor_touch =
 		oldvalue = other.armorvalue;
 		oldbit = other.armorbit;
 	}
-	
-	if (self.classname == "item_armorsherd")
-	{
-		if (oldtype && oldbit)	
-		{
-			bit = oldbit;
-			type = oldtype;
-			value = 1;
-		}
-	}
 
 	if (!oldtype)
 		value = value;
@@ -344,13 +347,13 @@ void() armor_touch =
 			bit = bit;
 	}
 
-	if(other.armorvalue >= 250) return;
+	if(other.armorvalue >= 200) return;
 		
 	other.armortype = type;
 	other.armorvalue = floor(value);
 
-	if (other.armorvalue > 250)
-		other.armorvalue = 250;
+	if (other.armorvalue > 200)
+		other.armorvalue = 200;
 	
 	other.items = other.items - (other.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3)) + bit;
 	other.armorbit = bit;
@@ -379,7 +382,7 @@ void() item_armor1 =
 	setmodel (self, "progs/armor.mdl");
 	self.skin = 0;
 	self.armortype = 0.3;
-	self.armorvalue = 25;
+	self.armorvalue = 50;
 	self.armorbit = IT_ARMOR1;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -394,7 +397,7 @@ void() item_armor2 =
 	setmodel (self, "progs/armor.mdl");
 	self.skin = 1;
 	self.armortype = 0.6;
-	self.armorvalue = 50;
+	self.armorvalue = 100;
 	self.armorbit = IT_ARMOR2;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -408,8 +411,8 @@ void() item_armorInv =
 	self.touch = armor_touch;
 	setmodel (self, "progs/armor.mdl");
 	self.skin = 2;
-	self.armortype = 0.8;
-	self.armorvalue = 100;
+	self.armortype = 0.9;
+	self.armorvalue = 150;
 	self.armorbit = IT_ARMOR3;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -424,15 +427,17 @@ WEAPONS
 */
 
 void() bound_other_ammo =
-{
-	if (other.ammo_shells > 200)
-		other.ammo_shells = 200;
-	if (other.ammo_nails > 300)
-		other.ammo_nails = 300;
-	if (other.ammo_rockets > 100)
-		other.ammo_rockets = 100;		
-	if (other.ammo_cells > 300)
-		other.ammo_cells = 300;		
+{	
+	if (other.ammo_shellsDB > MAX_SHELLS2)
+		other.ammo_shellsDB = MAX_SHELLS2;
+	if (other.ammo_shells > MAX_SHELLS)
+		other.ammo_shells = MAX_SHELLS;
+	if (other.ammo_nails > MAX_NAILS)
+		other.ammo_nails = MAX_NAILS;
+	if (other.ammo_rockets > MAX_ROCKETS)
+		other.ammo_rockets = MAX_ROCKETS;		
+	if (other.ammo_cells > MAX_CELLS)
+		other.ammo_cells = MAX_CELLS;		
 
 	if (!other.savedammo_shells)
 		other.savedammo_shells += self.savedammo_shells;
@@ -460,27 +465,27 @@ Deathmatch weapon change rules for picking up a weapon
 .float		ammo_shells, ammo_nails, ammo_rockets, ammo_cells;
 =============
 */
-void(float old, float new) Deathmatch_Weapon =
+void(float oldid, float newid) Deathmatch_Weapon =
 {
 	local float or, nr;
 
 // change self.weapon if desired
-	or = RankForWeapon (old);
-	nr = RankForWeapon (new);
+	or = RankForWeapon (oldid);
+	nr = RankForWeapon (newid);
 	if ( nr < or )
 	{
-		self.newweapon = new;
+		self.newweaponid = newid;
 		self.weaponstate = WEAPON_DEACTIVATE;	
 		player_run(); // get out of any fire states
 	}
 };
 
-void(float old, float new) SinglePlayer_Weapon =
+void(float old, float new, float newid) SinglePlayer_Weapon =
 {
 	if ((old & new)) // already have this weapon
 		return;
 
-	self.newweapon = new;
+	self.newweaponid = newid;
 	self.weaponstate = WEAPON_DEACTIVATE;	
 	player_run(); // get out of any fire states
 };
@@ -497,11 +502,13 @@ void() weapon_touch =
 	local	float	best, new, old;
 	local	entity	stemp;
 	local	float	leave;
+	local float modifier = 1;
 
 	if (!(other.flags & FL_CLIENT))
 		return;
-	
-	new = self.items;
+
+	weapon_info_generic gun = getweaponinfo[self.weaponid];
+	new = getweaponbit[self.weaponid];
 
 // if the player was using his best weapon, change up to the new one if better		
 	stemp = self;
@@ -517,8 +524,13 @@ void() weapon_touch =
 	if (leave && (other.items & new))
 		return;
 	
-	sprint (other, "You got the ");
-	sprint (other, self.netname);
+	sprint (other, "You got ");
+
+	if (other.items & new)
+		sprint (other, self.netname2);
+	else
+		sprint (other, self.netname);
+
 	sprint (other, "\n");
 // weapon touch sound
 	sound (other, CHAN_ITEM, "weapons/pkup.wav", 1, ATTN_NORM);
@@ -527,23 +539,27 @@ void() weapon_touch =
 // change to the weapon
 	old = other.items;
 	other.items = other.items | new;
+	
+	if (old & new)
+		modifier = 0.5;
 
-	other.ammo_shells += self.ammo_shells;
-	other.ammo_nails += self.ammo_nails;
-	other.ammo_rockets += self.ammo_rockets;
-	other.ammo_cells += self.ammo_cells;
+	other.ammo_shells += self.ammo_shells * modifier;
+	other.ammo_nails += self.ammo_nails * modifier;
+	other.ammo_rockets += self.ammo_rockets * modifier;
+	other.ammo_cells += self.ammo_cells * modifier;
 
 	bound_other_ammo ();
+	float newid = self.weaponid;
 	
 	stemp = self;
 	self = other;
 
-	if (self.weapon != new)	
+	if (self.weapon != new && self.weaponstate != WEAPON_RELOAD && !self.button3 && !self.grabbed_proj)	
 	{	
 		if (!deathmatch)
-			SinglePlayer_Weapon (old, new);
+			SinglePlayer_Weapon (old, new, newid);
 		else
-			Deathmatch_Weapon (self.oldweapon, new);
+			Deathmatch_Weapon (self.oldweaponid, newid);
 	}
 
 	self = stemp;
@@ -566,15 +582,17 @@ void() weapon_touch =
 /*QUAKED weapon_supershotgun (0 .5 .8) (-16 -16 0) (16 16 32)
 */
 
+.string netname2;
 
 void() weapon_shotgun =
 {
 	setmodel (self, "progs/g_shotg.mdl");
-	self.items = IT_SHOTGUN;
-	self.netname = "Pistol";
+	self.netname = "the Pistol";
+	self.netname2 = "some bullets";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_shells = 10;
+	self.weaponid = 2;
 	self.savedammo_shells2 = 16;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -584,11 +602,12 @@ void() weapon_shotgun =
 void() weapon_supershotgun =
 {
 	setmodel (self, "progs/g_shotg2.mdl");
-	self.items = IT_SUPER_SHOTGUN;
-	self.netname = "Shotgun";
+	self.netname = "the Shotgun";
+	self.netname2 = "some shells";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_shells = 10;
+	self.weaponid = 3;
 	self.savedammo_shells = 4;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -600,11 +619,12 @@ void() weapon_supershotgun =
 void() weapon_nailgun =
 {
 	setmodel (self, "progs/g_machn.mdl");
-	self.items = IT_NAILGUN;
-	self.netname = "Machine Gun";
+	self.netname = "the Machine Gun";
+	self.netname2 = "a clip";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_nails = 30;
+	self.weaponid = 4;
 	self.savedammo_nails = 30;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -616,50 +636,57 @@ void() weapon_nailgun =
 void() weapon_supernailgun =
 {
 	setmodel (self, "progs/g_chain.mdl");
-	self.items = IT_SUPER_NAILGUN;
-	self.netname = "ChainGun";
+	self.netname = "the ChainGun";
+	self.netname2 = "a belt";
 
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_nails = 30;
+	self.weaponid = 5;
 	self.savedammo_nails2 = 60;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
 };
-
-void() weapon_chaingun =
-{
-	setmodel (self, "progs/g_chain.mdl");
-	self.items = IT_SUPER_NAILGUN;
-	self.netname = "ChainGun";
-
-	self.touch = weapon_touch;
-	self.modelflags = MF_ROTATE;
-	self.ammo_nails = 30;
-	self.savedammo_nails2 = 60;
-	setsize (self, '-16 -16 0', '16 16 56');
-	StartItem ();
-};
-
 
 /*QUAKED weapon_grenadelauncher (0 .5 .8) (-16 -16 0) (16 16 32)
 */
 
 void() weapon_grenadelauncher =
-{
+{	
+	if (random() > 0.2)
+		weapon_grenadelauncher1 ();
+	else
+		weapon_grenadelauncher2 ();
+};
+
+void() weapon_grenadelauncher1 =
+{	
 	setmodel (self, "progs/g_rail.mdl");
-	self.items = IT_RAILGUN;
-	self.netname = "Chainsaw";
+	self.netname = "the Chainsaw";
+	self.netname2 = "another Chainsaw";
 
 	self.touch = weapon_touch;
+	self.weaponid = 10;
 	self.modelflags = MF_ROTATE;
 	// self.ammo_nails = 30;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
 };
 
+void() weapon_grenadelauncher2 =
+{
+	setmodel (self, "progs/g_widowmaker.mdl");
+	self.netname = "the Double-barreled Shotgun";
+	self.netname2 = "a couple of shells";
 
-
+	self.touch = weapon_touch;
+	self.weaponid = 11;
+	self.modelflags = MF_ROTATE;
+	self.ammo_shells = 1;
+	self.scale = 1.2;
+	setsize (self, '-16 -16 0', '16 16 56');
+	StartItem ();
+};
 
 /*QUAKED weapon_rocketlauncher (0 .5 .8) (-16 -16 0) (16 16 32)
 */
@@ -667,11 +694,12 @@ void() weapon_grenadelauncher =
 void() weapon_rocketlauncher =
 {
 	setmodel (self, "progs/g_rocket.mdl");
-	self.items = IT_ROCKET_LAUNCHER;
-	self.netname = "Rocket Launcher";
+	self.netname = "the Rocket Launcher";
+	self.netname2 = "some rockets";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_rockets = 5;
+	self.weaponid = 8;
 	self.savedammo_rockets = 3;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -684,11 +712,12 @@ void() weapon_rocketlauncher =
 void() weapon_lightning =
 {
 	setmodel (self, "progs/g_hyperb.mdl");
-	self.items = IT_LIGHTNING;
-	self.netname = "Plasma Gun";
+	self.netname = "the Plasma Gun";
+	self.netname2 = "some cells";
 	self.touch = weapon_touch;
 	self.modelflags = MF_ROTATE;
 	self.ammo_cells = 50;
+	self.weaponid = 7;
 	self.savedammo_cells = 25;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
@@ -698,12 +727,13 @@ void() weapon_lightning =
 void() weapon_bfg =
 {
 	setmodel (self, "progs/g_bfg.mdl");
-	self.items = IT_BFG;
-	self.netname = "B.F.G 9000";
+	self.netname = "the B.F.G 9000";
+	self.netname2 = "some cells";
 	self.modelflags = MF_ROTATE;
 	self.touch = weapon_touch;
 	self.ammo_cells = 50;
-	self.savedammo_cells = 20;
+	self.weaponid = 9;
+	self.savedammo_cells2 = 30;
 	setsize (self, '-16 -16 0', '16 16 56');
 	StartItem ();
 };
@@ -736,15 +766,18 @@ local float		best;
 // shotgun
 	if (self.weapon == 1)
 	{
-		if (other.ammo_shells >= 200)
+		if (other.ammo_shells >= MAX_SHELLS)
 			return;
 		other.ammo_shells = other.ammo_shells + self.aflag;
+
+		if (other.ammo_shellsDB < MAX_SHELLS2)
+			other.ammo_shellsDB = other.ammo_shellsDB + 3;
 	}
 
 // spikes
 	if (self.weapon == 2)
 	{
-		if (other.ammo_nails >= 300)
+		if (other.ammo_nails >= MAX_NAILS)
 			return;
 		other.ammo_nails = other.ammo_nails + self.aflag;
 	}
@@ -752,7 +785,7 @@ local float		best;
 //	rockets
 	if (self.weapon == 3)
 	{
-		if (other.ammo_rockets >= 100)
+		if (other.ammo_rockets >= MAX_ROCKETS)
 			return;
 		other.ammo_rockets = other.ammo_rockets + self.aflag;
 	}
@@ -760,14 +793,14 @@ local float		best;
 //	cells
 	if (self.weapon == 4)
 	{
-		if (other.ammo_cells >= 300)
+		if (other.ammo_cells >= MAX_CELLS)
 			return;
 		other.ammo_cells = other.ammo_cells + self.aflag;
 	}
 
 	bound_other_ammo ();
 	
-	sprint (other, "You got the ");
+	sprint (other, "You got ");
 	sprint (other, self.netname);
 	sprint (other, "\n");
 // ammo touch sound
@@ -805,16 +838,18 @@ void() item_shells =
 
 	if (self.spawnflags & WEAPON_BIG2)
 	{
-		setmodel (self, "maps/b_shell1.bsp");
-		self.aflag = 60;
+		setmodel (self, "progs/b_shell1.md3");
+		self.netname = "multiple shells and bullets";
+		self.aflag = 40;
 	}
 	else
 	{
-		setmodel (self, "maps/b_shell0.bsp");
-		self.aflag = 40;
+		setmodel (self, "progs/b_shell0.md3");
+		self.netname = "some shells and bullets";
+		self.aflag = 25;
 	}
 	self.weapon = 1;
-	self.netname = "shells";
+	
 	setsize (self, '0 0 0', '32 32 56');
 	StartItem ();
 };
@@ -828,16 +863,17 @@ void() item_spikes =
 
 	if (self.spawnflags & WEAPON_BIG2)
 	{
-		setmodel (self, "maps/b_nail1.bsp");
+		setmodel (self, "progs/b_nail1.md3");
+		self.netname = "multiple clips and belts";
 		self.aflag = 75;
 	}
 	else
 	{
-		setmodel (self, "maps/b_nail0.bsp");
+		setmodel (self, "progs/b_nail0.md3");
+		self.netname = "some clips and belts";
 		self.aflag = 50;
 	}
 	self.weapon = 2;
-	self.netname = "nails";
 	setsize (self, '0 0 0', '32 32 56');
 	StartItem ();
 };
@@ -851,16 +887,17 @@ void() item_rockets =
 
 	if (self.spawnflags & WEAPON_BIG2)
 	{
-		setmodel (self, "maps/b_rock1.bsp");
-		self.aflag = 15;
+		setmodel (self, "progs/b_rock1.md3");
+		self.netname = "multiple rockets and nades";
+		self.aflag = 20;
 	}
 	else
 	{
-		setmodel (self, "maps/b_rock0.bsp");
-		self.aflag = 8;
+		setmodel (self, "progs/b_rock0.md3");
+		self.netname = "some rockets and nades";
+		self.aflag = 10;
 	}
 	self.weapon = 3;
-	self.netname = "rockets";
 	setsize (self, '0 0 0', '32 32 56');
 	StartItem ();
 };
@@ -875,16 +912,17 @@ void() item_cells =
 
 	if (self.spawnflags & WEAPON_BIG2)
 	{
-		setmodel (self, "maps/b_batt1.bsp");
-		self.aflag = 75;
+		setmodel (self, "progs/b_batt1.md3");
+		self.netname = "a box of cell batteries";
+		self.aflag = 50;
 	}
 	else
 	{
-		setmodel (self, "maps/b_batt0.bsp");
-		self.aflag = 50;
+		setmodel (self, "progs/b_batt0.md3");
+		self.netname = "a cell battery";
+		self.aflag = 25;
 	}
 	self.weapon = 4;
-	self.netname = "cells";
 	setsize (self, '0 0 0', '32 32 56');
 	StartItem ();
 };
@@ -1363,7 +1401,7 @@ void() DropBackpack =
 		item.netname = "Plasma Gun";
 	else if (item.items == IT_BFG)
 		item.netname = "B.F.G 9000";
-	else if (item.items == IT_RAILGUN)
+	else if (item.items == IT_CHAINSAW)
 		item.netname = "Chainsaw";
 	else
 		item.netname = "";

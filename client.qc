@@ -168,29 +168,29 @@ void() SetChangeParms =
 	parm5 = self.ammo_nails;
 	parm6 = self.ammo_rockets;
 	parm7 = self.ammo_cells;
-	parm8 = self.weapon;
+	parm8 = self.weaponid;
 	parm9 = self.armortype * 100;
 	parm10 = self.armorbit;
 	parm11 = encode(self.savedammo_shells, self.savedammo_shells2, self.savedammo_nails);
 	parm12 = encode(self.savedammo_nails2, self.savedammo_rockets, self.savedammo_cells);
-	parm13 = self.savedammo_cells2;
+	parm13 = encode(self.savedammo_cells2, self.savedammo_shellsDB, 0);
 };
 
 void() SetNewParms =
 {
-	parm1 = IT_SHOTGUN | IT_AXE | IT_GRENADE_LAUNCHER | IT_HANDGR;
+	parm1 = IT_PISTOL | IT_FIST | IT_GRENADE | IT_GRABBER;
 	parm2 = 100;
 	parm3 = 0;
 	parm4 = 25;
 	parm5 = 0;
 	parm6 = 0;
 	parm7 = 0;
-	parm8 = 4096;
+	parm8 = 1;
 	parm9 = 0;
 	parm10 = 0;
 	parm11 = encode(0, 16, 0);
 	parm12 = encode(0, 0, 0);
-	parm13 = 0;
+	parm13 = encode(0, 0, 0);
 };
 
 void() DecodeLevelParms =
@@ -208,7 +208,7 @@ void() DecodeLevelParms =
 	self.ammo_nails = parm5;
 	self.ammo_rockets = parm6;
 	self.ammo_cells = parm7;
-	self.weapon = parm8;
+	self.weaponid = parm8;
 	self.armortype = parm9 * 0.01;
 	self.armorbit = parm10;
 	self.savedammo_shells = decode(parm11, HI8);
@@ -217,7 +217,8 @@ void() DecodeLevelParms =
 	self.savedammo_rockets = decode(parm12, MID8);
 	self.savedammo_cells = decode(parm12, LOW8);
 	self.savedammo_nails2 = decode(parm12, HI8);
-	self.savedammo_cells2 = parm13;
+	self.savedammo_cells2 = decode(parm13, HI8);
+	self.savedammo_shellsDB = decode(parm13, MID8);
 };
 
 /*
@@ -692,6 +693,9 @@ void() PutClientInServer =
 	self.invincible_finished = 0;
 	self.effects = 0;
 	self.invincible_time = 0;
+	self.hitmarker_time = 0;
+	self.shake_interval = 0;
+	self.shake_time = 0;
 
 	DecodeLevelParms ();
 	
@@ -711,8 +715,7 @@ void() PutClientInServer =
 	self.angles = spot.angles;
 	self.fixangle = TRUE;		// turn this way immediately
 	self.oldorigin = self.origin;
-	
-	PlayerTrail_Init ();
+	PlayerTrail_Init();
 
 // oh, this is a hack!
 	setmodel (self, "progs/eyes.mdl");
@@ -722,6 +725,7 @@ void() PutClientInServer =
 	modelindex_player = self.modelindex;
 
 	setsize (self, VEC_HULL_MIN, VEC_HULL_MAX);
+	//self.scale = 1;
 	
 	self.view_ofs = '0 0 22';
 
@@ -917,6 +921,7 @@ void() PlayerDeathThink =
 	self.button0 = 0;
 	self.button1 = 0;
 	self.button2 = 0;
+	self.button3 = 0;
 	respawn();
 };
 
@@ -1098,7 +1103,8 @@ void() PlayerPreThink =
 //	local	float	r;
 	
 	if (intermission_running)
-	{
+	{	
+		self.velocity = '0 0 0';
 		IntermissionThink ();	// otherwise a button could be missed between
 		return;					// the think tics
 	}
@@ -1110,6 +1116,13 @@ void() PlayerPreThink =
 
 	CheckRules ();
 	WaterMove ();
+	WeaponChange ();
+
+	if (self.shake_time < time && self.shake_time != 0)
+	{
+		self.shake_time = 0;
+		self.shake_interval = 0;
+	}
 
 	if (self.waterlevel == 2)
 		CheckWaterJump ();
@@ -1128,8 +1141,6 @@ void() PlayerPreThink =
 		self.pweaponmodel.angles = self.angles; 
 		self.pweaponmodel.origin = self.origin;  // update for origin control
 	}
-	self.weaponthink ();
-	W_WeaponUse ();
 
 	if (self.button2)
 	{
@@ -1142,26 +1153,12 @@ void() PlayerPreThink =
 	if (time < self.pausetime)
 		self.velocity = '0 0 0';
 
-	/*if(time > self.attack_finished && self.currentammo == 0 && self.weapon != IT_AXE)
-	{
-		if (self.weapon != IT_SUPER_SHOTGUN)
-		{
-			self.newweapon = W_BestWeapon ();
-			self.weaponstate = WEAPON_DEACTIVATE;
-		}
-		else
-			self.weaponstate = WEAPON_RELOAD;
-
-		
-	}*/
-
-	//self.oldorigin = self.origin;
-
 	if (!deathmatch)
 	{
 		if (!visible (PlayerTrail_LastSpot() ) )
 		{	
-			PlayerTrail_Add (self.origin);
+			//bprint("guh","\n");
+			PlayerTrail_Add (self.oldorigin);
 		}
 	}
 };
@@ -1330,7 +1327,7 @@ void() CheckPowerups =
 		if (self.megahealth_time < time && self.health > self.max_health && self.nextthink2 < time)
 		{
 			self.health = self.health - 1;
-			self.nextthink2 = time + 1;
+			self.nextthink2 = time + 3;
 		}
 	}
 };
@@ -1383,6 +1380,8 @@ void() PlayerPostThink =
 		self.jump_flag = self.velocity_z;
 
 	CheckPowerups ();
+
+	W_WeaponThink ();
 };	
 
 
@@ -1401,6 +1400,8 @@ void() ClientConnect =
 // a client connecting during an intermission can cause problems
 	if (intermission_running)
 		ExitIntermission ();
+
+	PlayerTrail_Init ();
 };
 
 
@@ -1509,18 +1510,18 @@ void(entity targ, entity attacker) ClientObituary =
 				rnum = attacker.weapon;
 				if (rnum == IT_AXE)
 				{
-					deathstring = " was pistoled by ";
+					deathstring = " was fisted by ";
 					deathstring2 = "\n";
 				}
 				if (rnum == IT_SHOTGUN)
 				{
-					deathstring = " chewed on ";
+					deathstring = " was pistoled by ";
 					deathstring2 = "'s boomstick\n";
 				}
 				if (rnum == IT_SUPER_SHOTGUN)
 				{
-					deathstring = " ate 2 loads of ";
-					deathstring2 = "'s buckshot\n";
+					deathstring = " chewed on ";
+					deathstring2 = "'s boomstic\n";
 				}
 				if (rnum == IT_NAILGUN)
 				{
@@ -1560,12 +1561,12 @@ void(entity targ, entity attacker) ClientObituary =
 					else
 						deathstring2 = "'s shaft\n";
 				}
-				if (rnum == IT_RAILGUN)
+				if (rnum == IT_CHAINSAW)
 				{
-					deathstring = " was railed by ";
+					deathstring = " was minced by ";
 					deathstring2 = "\n";
 				}
-				if (rnum == IT_RAILGUN)
+				if (rnum == IT_BFG)
 				{
 					deathstring = " obliterated ";
 					deathstring2 = "\n";
@@ -1586,85 +1587,7 @@ void(entity targ, entity attacker) ClientObituary =
 			// killed by a montser?
 			if (attacker.flags & FL_MONSTER)
 			{
-				// q2 mons
-				if (attacker.classname == "monster_soldier")
-					bprint (" was shottgunned by a Shotgun-Guard\n");
-				if (attacker.classname == "monster_medic")
-					bprint (" was incinerated by a Medic\n");
-				if (attacker.classname == "monster_soldier_light")
-					bprint (" was enlightened by a Light-Guard\n");
-				if (attacker.classname == "monster_mutant")
-					bprint (" was vored by a Mutant\n");
-				if (attacker.classname == "monster_infantry")
-					bprint (" was blasted by an Infantry\n");
-				if (attacker.classname == "monster_fish")
-					bprint (" was fed to the Rotfish\n");
-				if (attacker.classname == "monster_berserk")
-					bprint (" received a minor concussion from a Berserker\n");
-				if (attacker.classname == "monster_parasite")
-					bprint (" was sucked up by a Parasite\n");
-				if (attacker.classname == "monster_gunner")
-					bprint (" was gunned down by a Gunner\n");
-				if (attacker.classname == "monster_chick")
-					bprint (" was distracted when they saw an Iron Maiden\n");
-				if (attacker.classname == "monster_tank")
-					bprint (" was exploded by a Tank\n");
-				if (attacker.classname == "monster_commander")
-					bprint (" was imploded by a Tank Commander\n");
-				if (attacker.classname == "monster_ss")
-					bprint (" was punctured by a Machinegun-Guard\n");
-				if (attacker.classname == "monster_floater")
-					bprint (" thought the Electrician was a trach-can\n");
-				if (attacker.classname == "monster_brain")
-					bprint (" had a meat-ball party with the Brains\n");
-				if (attacker.classname == "monster_flyer")
-					bprint (" flew with a Flyer\n");
-				if (attacker.classname == "monster_gladiator")
-					bprint (" was railed by a Gladiator\n");
-				if (attacker.classname == "monster_hover")
-					bprint (" flew too close to the sun with an Icarus\n");
-				if (attacker.classname == "monster_supertank")
-					bprint (" was shot to death by a Super Tank\n");
-				if (attacker.classname == "monster_boss2")
-					bprint (" was stung by a Hornet\n");
-				if (attacker.classname == "monster_jorg")
-					bprint (" ate too many of Jorg's bullets\n");
-				if (attacker.classname == "monster_makron")
-					bprint (" failed to assasinate the Makron\n");
-
-				// q1 mons
-				if (attacker.classname == "monster_army")
-					bprint(" was shot by a Grunt\n");
-				if (attacker.classname == "monster_demon1")
-					bprint(" was eviscerated by a Fiend\n");
-				if (attacker.classname == "monster_dog")
-					bprint(" was mauled by a Rottweiler\n");
-				if (attacker.classname == "monster_enforcer")
-					bprint(" was blasted by an Enforcer\n");
-				if (attacker.classname == "monster_fish")
-					bprint(" was fed to the Rotfish\n");
-				if (attacker.classname == "monster_hell_knight")
-					bprint(" was slain by a Death Knight\n");
-				if (attacker.classname == "monster_knight")
-					bprint(" was slashed by a Knight\n");
-				if (attacker.classname == "monster_ogre")
-					bprint(" was destroyed by an Ogre\n");
-				if (attacker.classname == "monster_oldone")
-					bprint(" became one with Shub-Niggurath\n");
-				if (attacker.classname == "monster_newone")
-					bprint(" became one with Shub-Niggurath\n");
-				if (attacker.classname == "monster_shalrath")
-					bprint(" was exploded by a Vore\n");
-				if (attacker.classname == "monster_shambler")
-					bprint(" was smashed by a Shambler\n");
-				if (attacker.classname == "monster_tarbaby")
-					bprint(" was slimed by a Spawn\n");
-				if (attacker.classname == "monster_wizard")
-					bprint(" was scragged by a Scrag\n");
-				if (attacker.classname == "monster_zombie")
-					bprint(" joins the Zombies\n");
-
-
+				bprint(" ", attacker.deathtype, "\n");
 				return;
 			}
 
@@ -1679,11 +1602,32 @@ void(entity targ, entity attacker) ClientObituary =
 				bprint (" was squished\n");
 				return;
 			}
-			if (attacker.classname == "trap_shooter" || attacker.classname == "trap_spikeshooter")
+			if (attacker.deathtype == "spike")
 			{
 				bprint (" was spiked\n");
 				return;
 			}
+			if (attacker.deathtype == "plasma")
+			{
+				bprint (" was fried\n");
+				return;
+			}
+			if (attacker.deathtype == "fire")
+			{
+				bprint (" was engulfed in flames\n");
+				return;
+			}
+			if (attacker.deathtype == "acid")
+			{
+				bprint (" was corroded\n");
+				return;
+			}
+			if (attacker.deathtype == "bfglaser")
+			{
+				bprint (" was burned to a crisp\n");
+				return;
+			}
+
 			if (attacker.classname == "fireball")
 			{
 				bprint (" ate a cheeseball\n");
@@ -1736,7 +1680,7 @@ void(entity targ, entity attacker) ClientObituary =
 			}
 
 			// hell if I know; he's just dead!!!
-			bprint (" died\n");
+			bprint (" died mysteriously\n");
 		}
 	}
 };

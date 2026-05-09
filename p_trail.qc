@@ -48,6 +48,7 @@ void() PlayerTrail_Init =
 	{
 		trail[n] = spawn();
 		trail[n].classname = "player_trail";
+		//setmodel(trail[n], "progs/male/tris.mdl");
 	}
 
 	trail_head = 0;
@@ -63,7 +64,7 @@ void(vector spot) PlayerTrail_Add =
 		return;
 
 	trail[trail_head].origin = spot;
-//	dprint ("marker spawned at: ", vtos(trail[trail_head].origin), "\n");
+	//bprint ("marker spawned at: ", vtos(trail[trail_head].origin), "\n");
 
 	trail[trail_head].ltime = time;
 	
@@ -80,13 +81,13 @@ void(vector spot) PlayerTrail_New =
 	if (!trail_active)
 		return;
 	
-	bprint ("hi");
+	//bprint ("hi");
 	PlayerTrail_Init ();
 	PlayerTrail_Add (spot);
 }
 
 
-entity() PlayerTrail_PickFirst =
+entity(entity caller) PlayerTrail_PickFirst =
 {
 	local float		marker;
 	local float		n;
@@ -96,7 +97,7 @@ entity() PlayerTrail_PickFirst =
 
 	for (marker = trail_head, n = TRAIL_LENGTH; n; n--)
 	{
-		if(trail[marker].ltime <= self.trail_time)
+		if(trail[marker].ltime <= caller.trail_time)
 			marker = nexttrail(marker);
 		else
 			break;
@@ -115,7 +116,7 @@ entity() PlayerTrail_PickFirst =
 	return trail[marker];
 }
 
-entity() PlayerTrail_PickNext =
+entity(entity caller) PlayerTrail_PickNext =
 {
 	local float		marker;
 	local float		n;
@@ -125,7 +126,7 @@ entity() PlayerTrail_PickNext =
 
 	for (marker = trail_head, n = TRAIL_LENGTH; n; n--)
 	{
-		if(trail[marker].ltime <= self.trail_time)
+		if(trail[marker].ltime <= caller.trail_time)
 			marker = nexttrail(marker);
 		else
 			break;

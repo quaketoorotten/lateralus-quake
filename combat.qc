@@ -71,11 +71,11 @@ void(entity targ, entity attacker) Killed =
 		return;
 	}
 	
-	if (attacker.flags & FL_MONSTER)
+	if (attacker.flags & FL_MONSTER || self.classname == "explo_box")
 		self.enemy = attacker;
 
-	if(attacker.classname == "monster_medic") // if medic killed fuck, no fucks give
-		self.owner = attacker;
+	if (self.goonmaster && self.goonmaster.goons > 0) // if youre a goon, decrease goon master goon count
+		self.goonmaster.goons = self.goonmaster.goons - 1;
 	
 // bump the monster counter
 	if ((self.flags & FL_MONSTER) )
@@ -107,13 +107,7 @@ float(entity attacker) dontattackthese =
 	if (self.attack_state == AS_STRAIGHT && attacker.classname != "player") return FALSE; // don't retaliate while running
 	if (random() < 0.3) return FALSE; // evil
 
-	if (attacker.classname == "monster_tank") return FALSE; 
-	if (attacker.classname == "monster_commander")  return FALSE; 
-	if (attacker.classname == "monster_medic") return FALSE; 
-	if (attacker.classname == "monster_jorg") return FALSE; 
-	if (attacker.classname == "monster_makron") return FALSE; 
-	if (attacker.classname == "monster_supertank") return FALSE; 
-	if (attacker.classname == "monster_boss2") return FALSE; 
+	if (attacker.owner.classname == "monster_medic") return FALSE; 
 
 	 return TRUE; 
 };
@@ -193,7 +187,10 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 	else if ((targ.movetype != MOVETYPE_PUSH) && (targ.movetype != MOVETYPE_NONE) && (targ.movetype != MOVETYPE_BOUNCE))
 	{
 		if(kick && (checkbottom(targ)) && !(targ.flags & FL_LEAP) )
-		{
+		{		
+			if((targ.flags & FL_MONSTER))
+				inflictor_org[2] = targ.origin[2];				
+
 			local vector dir = targ.origin - inflictor_org;
 			dir = normalize(dir);
 
@@ -205,10 +202,11 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 			if((targ.flags & FL_MONSTER))
 			{
 				targ.flags = targ.flags - (targ.flags & FL_ONGROUND);
-				targ.velocity_z = targ.velocity_z + vlen(dir* (100.0 * kick / targ.mass ) );
+				targ.velocity_z = targ.velocity_z + vlen(dir* (250.0 * kick / targ.mass ) );
 			}
 		}
-	}	
+	}		
+
 // check for godmode or invincibility
 	if (targ.flags & FL_GODMODE)
 		return;
@@ -231,6 +229,9 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 		&& (targ.flags & FL_MONSTER) && skill >= 1 
 		&& attacker != targ ) // enemies of same type don't damage eachother
 		take = 0;
+
+	if (attacker.flags & FL_CLIENT)
+		attacker.hitmarker_time = time + 0.15;
 	
 	if(take > 0) 
 	{			
@@ -271,9 +272,9 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 	{
 		self.th_pain (attacker, take);
 		// nightmare mode monsters don't make pain noises often	
-		if (skill == 3)
+		if (skill == 3 && (self.flags & FL_MONSTER))
 			self.pain_finished = time + 4 + random()*2;
-		else if (skill == 2)
+		else if (skill == 2 && (self.flags & FL_MONSTER))
 			self.pain_finished = time + 4;
 	}
 
@@ -285,39 +286,69 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 T_RadiusDamage
 ============
 */
+
+static void(vector o, vector vel, float p) spawnbloodspray =
+{	
+	for(float i = 0; i<4;i++)
+		SpawnBlood (o, vel * 0.25, p);
+//	bprint("how");
+
+}
 void(entity inflictor, entity attacker, float damage, float damage_rad, entity ignore) T_RadiusDamage =
 {
 	local	float 	points;
 	local	entity	head;
 	local	vector	org;
-
-	head = findradius(inflictor.origin, damage_rad);
 	
-	while (head)
-	{
-		if (head != ignore)
-		{
-			if (head.takedamage)
-			{
-				org = head.origin + (head.mins + head.maxs)*0.5;
-				points = 0.5*vlen (inflictor.origin - org);
-				if (points < 0)
-					points = 0;
-				points = damage - points;
-				if (head == attacker)
-					points = points * 0.5;
-				if (points > 0)
-				{
-					if (CanDamage (head, inflictor))
-					{	// shambler takes half damage from all explosions
-						if (head.classname == "monster_nazicultist")						
-							T_Damage (head, inflictor, inflictor.origin, attacker, points*0.5, points*0.2);
-						else
-							T_Damage (head, inflictor, inflictor.origin, attacker, points, points*0.7);
-					}
-				}
-			}
-		}
-		head = head.chain;
-	}
+	for (head = findradius(inflictor.origin, damage_rad); head; head = head.chain)
+	{	
+		if(head == ignore)
+			continue;
+    	if(!head.takedamage)
+            continue;
+        if(!CanDamage(head, inflictor))
+            continue;
+		if (head.classname == attacker.classname && (attacker.flags & FL_MONSTER) )
+			continue;
+		
+		org = head.origin + (head.mins + head.maxs)*0.5;
+		points = 0.5*vlen (inflictor.origin - org);
+		if (points < 0)
+			points = 0;
+		points = damage - points;
+		if (head == attacker)
+			points = points * 0.5;
+
+		if (points < 0)
+			continue;
+
+		if (head.classname == "monster_shambler")						
+			T_Damage (head, inflictor, inflictor.origin, attacker, points*0.5, points*0.2);
+		else if (inflictor.classname == "plasma")
+			T_Damage (head, inflictor, inflictor.origin, attacker, points, 30);
+		else 
+			T_Damage (head, inflictor, inflictor.origin, attacker, points, points*0.4);
+		
+		if (head.classname != "func_explosive" && head.classname != "explo_box")
+			spawnbloodspray  (org, (inflictor.origin - org), points);
+
+	}	
 };
+
+
+void(entity caller, float power, float timer) GroundShake = 
+{
+	if (!power || !timer)
+		return;
+
+	entity client = checkclient();
+
+	if (!client)
+		return;
+
+	if (client.shake_time)
+		return;
+
+	client.shake_time = time + timer;
+	client.shake_interval = power;
+}

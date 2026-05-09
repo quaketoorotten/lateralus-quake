@@ -10,110 +10,63 @@ Collects multiple small damages into a single damage
 ==============================================================================
 */
 
-entity multi_ent;
-float	multi_damage;
-float multi_knock;
 
-void() tracer_think = {
-	if (time > self.attack_finished || self.frame >= 4) {
-		remove(self);
+void() tracer_touch = 
+{
+	if (other == self.owner)
 		return;
-	}
+	vector org = self.origin;
 
-	self.frame++;
-	self.nextthink = time + 0.02;
-};
-
-void(vector org, vector direction, vector dest) MonsterTracer = 
-{ // alkaline :3	
-
-	float dist = vlen(org - dest);
-	newmis = spawn();
-	newmis.owner = self;
-	newmis.movetype = MOVETYPE_FLY;
-	newmis.solid = SOLID_NOT;
-
-	newmis.angles = vectoangles(direction);
-	
-	newmis.classname = "tracer";
-	newmis.think = tracer_think;
-	newmis.nextthink = time + 0.02;
-	newmis.alpha = 0.5;
-	
-	newmis.velocity = direction * 1024;
-	newmis.attack_finished = time + dist/7500;
-	//newmis.attack_finished = time + dist/((dist*dist/120) + 3000);
-
-	setmodel (newmis, "progs/tracer.mdl");  //Precache model in WORLD.QC
-	setsize (newmis, '0 0 0', '0 0 0');
-	setorigin (newmis, org);
-
-	
-};
-
-void() ClearMultiDamage =
-{
-	multi_ent = world;
-	multi_damage = 0;
-	multi_knock = 0;
-};
-
-void(float kick) ApplyMultiDamage =
-{
-	if (!multi_ent)
-		return;
-
-	T_Damage (multi_ent, self, trace_endpos, self, multi_damage, multi_knock);
-};
-
-void(entity hit, float damage, float kick) AddMultiDamage =
-{
-	if (!hit)
-		return;
-	
-	if (hit != multi_ent)
-	{
-		multi_knock = 1;
-		ApplyMultiDamage (kick);
-		multi_damage = damage;
-		multi_ent = hit;
-		multi_knock = 0;
-	}
-	else
-	{
-		multi_damage = multi_damage + damage;
-		multi_knock += kick;
-	}
-};
-
-void(float damage, vector dir, float kick) m_TraceAttack =
-{
-	local	vector	vel, org;
-
-	vel = normalize(dir + v_up*crandom() + v_right*crandom());
-	vel = vel + 2*trace_plane_normal;
-	vel = vel * 200;
-
-	org = trace_endpos - dir*4;
-
-	if (trace_ent.takedamage)
+	if (other.takedamage)
 	{	
-		SpawnBlood (org, vel*0.2);
-
-		AddMultiDamage (trace_ent, damage, kick);
+		T_Damage (other, self, self.origin, self.owner, self.dmg, self.dspeed);
+		SpawnBlood (org, self.velocity * 0.2, self.dspeed * 2.5);
+		// pointparticles (particleeffectnum("TE_BLOOD2"), org);
 	}
 	else
-	{
+	{	
 		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 		WriteByte (MSG_BROADCAST, TE_SPIKE);
 		WriteCoord (MSG_BROADCAST, org_x);
 		WriteCoord (MSG_BROADCAST, org_y);
 		WriteCoord (MSG_BROADCAST, org_z);
+
+		SpawnImpact (org, self.velocity);
 	}
+
+	remove(self);
 };
 
+void(vector org, vector direction, float damage, float kick, float speed) TracerBullet = 
+{ 
 
-void(float shotcount, vector start, vector dir, vector spread, float damage, float kick) monster_FireBullets =
+	local entity tracer = spawn();
+	tracer.owner = self;
+	tracer.movetype = MOVETYPE_FLY;
+	tracer.solid = SOLID_BBOX;
+
+	tracer.angles = vectoangles(direction);
+	
+	tracer.classname = "tracer";
+	tracer.effects = tracer.effects | EF_ADDITIVE | EF_FULLBRIGHT;
+	tracer.think = SUB_Remove;
+	tracer.nextthink = time + 6;
+	tracer.touch = tracer_touch;
+	tracer.alpha = 0.7;
+	tracer.scale = 0.7;
+	tracer.dmg = damage;
+	
+	tracer.velocity = direction * speed;
+	tracer.dspeed = kick;
+
+	setmodel (tracer, "progs/tracer.md3");  //Precache model in WORLD.QC
+	setsize (tracer, '0 0 0', '0 0 0');
+	setorigin (tracer, org);
+
+	
+};
+
+void(float shotcount, vector start, vector dir, vector spread, float damage, float kick, float speed) monster_FireBullets =
 {
     local vector direction;
     local vector src;
@@ -124,41 +77,144 @@ void(float shotcount, vector start, vector dir, vector spread, float damage, flo
     src = start + v_forward * 10;
   //  src_z = self.absmin_z + self.size_z * 0.7;
 
-    ClearMultiDamage();
-
     while (  shotcount --)
     {
         direction = dir + crandom() * spread_x * v_right + crandom() * spread_y * v_up;
 		
-        traceline(src, src + direction * 2048, FALSE, self);
-	  if (!(vlen(src - trace_endpos) < 96 && trace_ent.solid == SOLID_BSP))
-			MonsterTracer (src, direction, trace_endpos);
+		TracerBullet (src, direction, damage, kick, speed);
 
-        if (trace_fraction != 1.0)
-        {
-            m_TraceAttack(damage, direction, kick);
+    }
+};
+
+//================================================================================================================================
+
+float STOP_EPSILON   = 0.1;
+vector ClipVelocity(vector in, vector normal, float overbounce)
+{
+    float dot = dotproduct(in, normal);
+    vector out = in + (normal * (-2 * dot));
+    out = out * (overbounce - 1.0);
+    
+    if (dotproduct(out, out) < STOP_EPSILON * STOP_EPSILON)
+        out = '0 0 0';
+    
+    return out;
+}
+
+static float vlensquared(vector v) =
+{
+	return v[0]^2 + v[1]^2 + v[2]^2;
+}
+
+float pitches[9] = { -80.0, -70.0, -60.0, -50.0, -40.0, -30.0, -20.0, -10.0, -5.0 };
+// quake 2 rerelease
+float M_CalculatePitchToFire(vector targ, vector start,__out vector aim_, float speed, float time_remaining, float mortar, float destroy_on_touch)
+{
+  
+    float best_pitch = 0.0;
+	// idk a quakec version of this
+    float best_dist = 0;
+
+    float sim_time = 0.1;
+   	vector fwd, up, r;
+    vector pitched_aim = vectoanglesq2(aim_);
+    float grav = cvar("sv_gravity");	
+
+    for (float i = 0; i < 9; i++)
+    {
+        if (mortar && pitches[i] >= -30.0)
+            break;
+
+        pitched_aim_x = pitches[i];
+		
+	  	AngleVectors(pitched_aim, fwd, r, up);
+
+        vector vel = fwd * speed;
+        vector org = start;
+
+        float t = time_remaining;
+
+        while (t > 0.0)
+        {  
+			vel += '0 0 -1' * grav * sim_time;
+
+            vector end = org + (vel * sim_time);
+			traceline(org, end, 0, self);
+
+            org = trace_endpos;
+
+            if (trace_fraction < 1)
+            {
+                if (pointcontents(org) == CONTENT_SKY)
+                    break;
+
+                org = org + trace_plane_normal;
+                vel = ClipVelocity(vel, trace_plane_normal, 1.6);
+
+                float dist = vlensquared(org - targ);
+
+                if (trace_ent == self.enemy || (trace_ent.classname == "player") || 
+				(trace_plane_normal_z >= 0.7 && dist < (128 * 128) && dist > best_dist))
+                {
+                  	best_pitch = pitches[i];
+			//  bprint(ftos(best_pitch), "\n");
+                    best_dist = dist;
+                }
+
+				if (destroy_on_touch)
+                    break;
+            }
+
+            t -= sim_time;
         }
     }
-    ApplyMultiDamage(kick);
+
+    if (best_dist > 0)
+    {	
+        pitched_aim[0] = best_pitch;
+	  	AngleVectors(pitched_aim, fwd, r, up);
+        aim_ = fwd;
+	
+        return TRUE;
+    } 
+
+    return FALSE;
+}
+
+void() OgreGrenadeExplode =
+{
+	if (self.owner.classname == "monster_shambler" || self.owner.classname == "monster_shambler2")
+		self.classname = "missile";
+	
+	self.dmg = 60;
+	T_RadiusDamage (self, self.owner, self.dmg, self.dmg_rad + 40, world);
+//	sound (self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
+
+rocketimpact  ();
+	
+	if (self.classname == "missile")
+	{
+		self.classname = "green";
+		
+	}
+	BecomeExplosion ();
 };
 
 void() m_GrenadeExplode =
 {
-	if (self.owner.classname == "monster_shambler")
+	if (self.owner.classname == "monster_shambler" || self.owner.classname == "monster_shambler2")
 		self.classname = "missile";
 
-	T_RadiusDamage (self, self.owner, self.dmg, self.dmg + 40, world);
-	sound (self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
+	T_RadiusDamage (self, self.owner, self.dmg, self.dmg_rad + 40, world);
+//	sound (self, CHAN_VOICE, "weapons/r_exp3.wav", 1, ATTN_NORM);
 
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-	WriteCoord (MSG_BROADCAST, self.origin_x);
-	WriteCoord (MSG_BROADCAST, self.origin_y);
-	WriteCoord (MSG_BROADCAST, self.origin_z);
-
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC"), self.origin);
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC2"), self.origin);
-
+rocketimpact  ();
+	
+	if (self.classname == "missile")
+	{
+		self.classname = "green";
+		
+	}
 	BecomeExplosion ();
 };
 
@@ -166,7 +222,7 @@ void() m_GrenadeTouch =
 {
 	if (other == self.owner)
 		return;		// don't explode on owner
-	if (other.takedamage == DAMAGE_AIM)
+	if (other.takedamage)
 	{
 		m_GrenadeExplode();
 		return;
@@ -176,9 +232,10 @@ void() m_GrenadeTouch =
 		self.avelocity = '0 0 0';
 };
 
-void(vector org, vector dir, float damage, float timer = 1.5) monster_FireGravityBall=
+void(vector org, vector dir, float damage, float timer, float right_adjust, float up_adjust, float speed) monster_FireGravityBall=
 {
 	local	entity missile;
+	float grav = cvar("sv_gravity");
 	
 	self.effects = self.effects | EF_MUZZLEFLASH;
 
@@ -191,11 +248,20 @@ void(vector org, vector dir, float damage, float timer = 1.5) monster_FireGravit
 // set missile speed	
 
 	makevectors (dir);
+	missile.velocity = dir * speed;
 
-	missile.velocity = dir * 600;
-	missile.velocity += (200 + crandom() * 10)* v_up;
-	missile.velocity += (crandom() * 10) * v_right;
+	if (up_adjust)
+	{
+		float gravityAdjustment = grav / 800;
+		missile.velocity += v_up * up_adjust * gravityAdjustment ;
+	}
+
+	if (right_adjust)
+		missile.velocity += v_right * right_adjust;
+
 	missile.dmg = damage;
+	missile.dmg_rad = damage;
+	missile.aiflags |= IS_PROJECTILE;
 
 	missile.avelocity = '300 300 300';
 
@@ -205,59 +271,27 @@ void(vector org, vector dir, float damage, float timer = 1.5) monster_FireGravit
 
 // set missile duration
 	missile.nextthink = time + timer;
+	missile.ltime = timer;
 	missile.think = m_GrenadeExplode;
-	
-	setmodel (missile, "progs/lavaball.mdl");
 
-	if (self.classname == "monster_shambler")
-	{
-		missile.traileffectnum = particleeffectnum ("EF_PLASMA2");
-		missile.skin = 1;
-	}
-	else
-		missile.traileffectnum = particleeffectnum ("EF_NADETRAIL");
-	
-	setsize (missile, '0 0 0', '0 0 0');		
-	setorigin (missile, org);
-};
-
-void(vector org, vector dir, float damage) monster_FireNade =
-{
-	local	entity missile;
-	
-	self.effects = self.effects | EF_MUZZLEFLASH;
-
-	sound (self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-
-	missile = spawn ();
-	missile.owner = self;
-	missile.movetype = MOVETYPE_BOUNCE;
-	missile.solid = SOLID_BBOX;
-	missile.classname = "grenade";
+	setmodel (missile, "progs/muzzleflash.spr");
 		
-// set missile speed	
-
-	makevectors (dir);
-	missile.traileffectnum = particleeffectnum ("EF_NADETRAIL");
-
-
-	missile.velocity = dir * 600;
-	missile.velocity += (200 + crandom() * 10)* v_up;
-	missile.velocity += (crandom() * 10) * v_right;
-	missile.dmg = damage;
-
-	missile.avelocity = '300 300 300';
-
-	missile.angles = vectoangles(missile.velocity);
-	
-	missile.touch = m_GrenadeTouch;
-	
-// set missile duration
-	missile.nextthink = time + 2.5;
-	missile.think = m_GrenadeExplode;
-	
-	setmodel (missile, "progs/grenade.mdl");
+	if (self.classname == "monster_shambler" || self.classname == "monster_shambler2" || self.classname == "monster_boglord")
+	{	
+		missile.emiteffectnum = particleeffectnum ("TE_HK_FIREBALL");
+		missile.traileffectnum = particleeffectnum ("EF_NADETRAIL2");
+		missile.shake_interval = 0.6;
+		missile.shake_time = 1;
+	}	
+	else
+	{
+		missile.emiteffectnum = particleeffectnum ("TE_IMP_FIREBALL");
+		missile.traileffectnum = particleeffectnum ("EF_NADETRAIL");
+		missile.shake_interval = 0.2;
+		missile.shake_time = 1;
+	}
 
 	setsize (missile, '0 0 0', '0 0 0');		
 	setorigin (missile, org);
 };
+

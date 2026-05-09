@@ -145,26 +145,35 @@ void() point_combat_touch =
 	other = temp; // other is now the one calling the touch
 
 	if (other.target)
-	{
+	{	
+		//bprint ("eh??", "\n");
 		self.target = other.target;
-		self.goalentity = other.movetarget = find(world, target, other.target);
+		self.goalentity = other.movetarget = find(world, targetname, other.target);
+		self.movetarget = self.goalentity; // wow it really is that simple
 		if (!self.goalentity)
-		{
+		{	
 			dprint( self.classname, " at " , vtos(self.origin), "target ", self.target, " does not exist\n");
 			self.movetarget = other;
 		}
+
+		//bprint(vtos(self.goalentity.origin),"\n");
 		other.target = __NULL__;
 	}
 	
 	else if (hold && !(self.flags & (FL_SWIM|FL_FLY)))
 	{		
+		if (visible(self.enemy))
+			return;
+
+		if (self.health <= 0)
+			return;
+
 		if (self.aiflags & AI_STAND_GROUND)
 			return;
 
 		self.pausetime = 99999999;
 		self.th_stand ();
 		self.aiflags |= (AI_STAND_GROUND | AI_THIRD_EYE);
-		//self.nextthink = time;
 	}
 
 	if (self.movetarget == other)
@@ -178,9 +187,16 @@ void() point_combat_touch =
 			self.target = __NULL__;
 			self.movetarget = __NULL__;
 		}
-		self.goalentity = self.enemy;
-		self.aiflags &= ~AI_COMBAT_POINT;
+
+		//if (!other.ta)
+	//	{
+			self.goalentity = self.enemy;
+			self.aiflags &= ~AI_COMBAT_POINT;
+	//	}
 	}
+
+	other = self;
+	self = temp; // reset
 };
 
 void() point_combat =
@@ -194,9 +210,66 @@ void() point_combat =
 	self.classname = "combat_point";
 	self.solid = SOLID_TRIGGER;
 	self.touch = point_combat_touch;
+	//self.movetarget = find(world, targetname, self.target);
+	//bprint (vtos(self.movetarget.origin), "\n");
 	setsize (self,' -8 -8 -16', '8 8 16');
 };
 
+void() point_action_touch =
+{	
+	if (!(other.flags & FL_MONSTER))
+		return;
+
+	if (other.targetname != self.target)
+		return;
+
+	if (other.aiflags & AI_SCRIPTED_ACTION)
+		return;
+	
+
+	entity targ = find (world, targetname, self.combattarget);
+
+	if (targ)
+	{	
+		other.oldenemy = other.enemy;
+		other.enemy = targ;
+		other.aiflags |= AI_SCRIPTED_ACTION;
+	}
+
+	other.think = self.use;
+	other.nextthink = time;
+
+	remove(self);
+};
+
+void() point_action =
+{
+	if (deathmatch)
+	{
+		remove (self);
+		return;
+	}
+	
+	self.classname = "action_point";
+	self.solid = SOLID_TRIGGER;
+	self.touch = point_action_touch;
+
+	setsize (self,' -8 -8 -16', '8 8 16');
+};
+
+void() action_dummy =
+{
+	if (deathmatch)
+	{
+		remove (self);
+		return;
+	}
+	
+	self.classname = "action_dummy";
+	self.solid = SOLID_TRIGGER;
+
+	setsize (self,' -8 -8 -16', '8 8 16');
+};
 
 //============================================================================
 
@@ -245,7 +318,7 @@ float (entity targ) visible =
 	spot1 = self.origin + self.view_ofs;
 	spot2 = targ.origin + targ.view_ofs;
 	traceline (spot1, spot2, TRUE, self);	// see through other monsters
-	
+	//line(spot1, spot2);
 	if (trace_inopen && trace_inwater)
 		return FALSE;			// sight line crossed contents
 
@@ -289,10 +362,12 @@ void(entity ent) HuntTarget =
 	self.goalentity = self.enemy;
 
 	if (!(self.flags & FL_DODGED))
+	{
+		self.nextthink = time;
 		self.think = self.th_run;
-	
+	}
+		
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
-	self.nextthink = time + 0.1;
 
 	SUB_AttackFinished (1);	// wait a while before first attack
 
@@ -329,8 +404,9 @@ void(entity targ) FoundTarget =
 	if (!self.movetarget)
 	{
 		self.goalentity = self.movetarget = self.enemy;
-		HuntTarget (self);
 		self.th_sight ();
+		HuntTarget (self);
+		
 		dprint (self.classname," at " ,vtos(self.origin)," combat target ", self.combattarget, " not found \n");
 		return;
 	}
@@ -343,7 +419,9 @@ void(entity targ) FoundTarget =
 	self.movetarget.targetname = __NULL__;
 	self.pausetime = 0;
 
+	//bprint ("wow", "/n")
 	// run for it
+	
 	self.th_run ();	
 
 	self = oself;
@@ -450,7 +528,7 @@ float() FindTarget =
 
 void(float dist) ai_move =
 {
-	M_walkmove (self.angles_y, dist);
+	walkmove (self.angles_y, dist);
 };
 
 /*
@@ -495,8 +573,8 @@ void(float dist) ai_walk =
 	if (FindTarget ())
 		return;
 		
-	self.nextthink = time + 0.04;	
-	M_MoveToGoal (dist);
+	self.nextthink = time + 0.035;	
+	movetogoal (dist);
 };
 
 
@@ -509,12 +587,16 @@ The monster is staying in one place for a while, with slight angle turns
 */
 void() ai_stand =
 {	
-	if (self.enemy && (self.aiflags & AI_THIRD_EYE))
+	if (self.health < 0)
+		return;
+
+	if (self.enemy && (self.aiflags & AI_THIRD_EYE) )
 	{	
 		if (visible (self.enemy))
 		{
 			self.aiflags &= ~(AI_THIRD_EYE | AI_STAND_GROUND);
 			self.th_run ();
+			SUB_AttackFinished (0.25);
 		}
 		return;
 	}
@@ -528,7 +610,7 @@ void() ai_stand =
 		return;
 	}
 
-	self.nextthink = time + 0.04;
+	self.nextthink = time + 0.035;
 	
 // change angle slightly
 
@@ -667,7 +749,19 @@ void(float d, float timer = 0.1) ai_run_slide =
 		
 	self.lefty = 1 - self.lefty;
 	
-	M_walkmove (self.ideal_yaw - ofs, d);
+	walkmove (self.ideal_yaw - ofs, d);
+};
+
+void(float d, float timer = 0.1) ai_slide =
+{	
+	local float	ofs;
+	self.nextthink = time + timer;
+	if (self.lefty)
+		ofs = 90;
+	else
+		ofs = -90;
+	
+	walkmove (self.ideal_yaw + ofs, d);
 };
 
 /*
@@ -681,6 +775,7 @@ void() ai_face =
 {
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
 	ChangeYaw ();
+//	ai_adjustflyangle (2);
 };
 
 /*
@@ -698,7 +793,8 @@ void(float d) ai_charge =
 {
 	self.ideal_yaw = vectoyaw(self.enemy.origin - self.origin);
 	ChangeYaw ();
-	M_walkmove (self.angles_y, d);		// done in C code...
+	walkmove (self.angles_y, d);		// done in C code...
+//	ai_adjustflyangle(d);
 };
 
 void() ai_charge_side =
@@ -715,7 +811,7 @@ void() ai_charge_side =
 	dtemp = self.enemy.origin - 30*v_right;
 	heading = vectoyaw(dtemp - self.origin);
 	
-	M_walkmove(heading, 20);
+	walkmove(heading, 20);
 };
 
 
@@ -987,10 +1083,10 @@ The monster has an enemy it is trying to kill
 */
 void(float dist) ai_run =
 {		
-	movedist = dist;
 	local entity tempgoal, save, marker;
 	local float left, right, dis1, dis2, center, new;
 	local vector view, Ltarg, Rtarg;
+	vector fwd, r, up;
 
 	self.show_hostile = time + 1;		// wake up other monsters
 
@@ -998,11 +1094,22 @@ void(float dist) ai_run =
 	enemy_range = range(self.enemy);
 	enemy_yaw = vectoyaw(self.enemy.origin - self.origin);
 
-	self.nextthink = time + 0.04;
+	self.nextthink = time + 0.035;
 
 	if (self.aiflags & AI_COMBAT_POINT)
 	{	
 		M_MoveToGoal (dist);
+		return;
+	}
+
+	if (self.aiflags & AI_SCRIPTED_ACTION)
+	{	
+		self.aiflags &= ~AI_SCRIPTED_ACTION;
+
+		if (!(self.enemy.flags & FL_MONSTER))
+			remove(self.enemy);
+
+		//self.enemy = self.oldenemy;
 		return;
 	}
 
@@ -1018,12 +1125,12 @@ void(float dist) ai_run =
 		return;
 	}
 
-//--------- q2 port kinda
 	if (enemy_vis)
 	{
 		M_MoveToGoal (dist);
 		self.aiflags &= ~AI_LOST_SIGHT;
 		self.last_sighting = self.enemy.origin;
+		self.trail_time = time;
 		return;
 	}
 
@@ -1031,17 +1138,9 @@ void(float dist) ai_run =
 	{	
 		M_MoveToGoal (dist);
 		self.search_time = 0;
-		dprint("search timeout\n");
+		//dprint("search timeout\n");
 		return;
 	}
-
-	if (self.brainspeed > time)
-	{
-		M_MoveToGoal (dist);
-		return;
-	}
-
-	self.brainspeed = time + 0.1;
 
 	save = self.goalentity;
 	tempgoal = spawn();
@@ -1077,11 +1176,11 @@ void(float dist) ai_run =
 		else if (self.aiflags & AI_PURSUIT_LAST_SEEN)
 		{
 			self.aiflags &= ~AI_PURSUIT_LAST_SEEN;
-			marker = PlayerTrail_PickFirst ();
+			marker = PlayerTrail_PickFirst (self);
 		}
 		else
 		{
-			marker = PlayerTrail_PickNext ();
+			marker = PlayerTrail_PickNext (self);
 		}
 
 		if (marker)
@@ -1089,8 +1188,7 @@ void(float dist) ai_run =
 			self.last_sighting = marker.origin;
 			self.trail_time = marker.ltime;
 			self.angles_y = self.ideal_yaw = marker.angles_y;
-
-			dprint("heading is "); dprint(ftos(self.ideal_yaw)); dprint("\n");
+		//	dprint("heading is "); dprint(ftos(self.ideal_yaw)); dprint("\n");
 
 			new = TRUE;
 		}
@@ -1106,7 +1204,7 @@ void(float dist) ai_run =
 	
 	if(new)
 	{		
-		tracebox(self.origin + '0 0 24', self.mins, self.maxs, self.goalentity.origin, TRUE, self);
+		tracebox(self.origin + '0 0 24', self.mins, self.maxs, self.goalentity.origin, FALSE, self);
 	
 		if(trace_fraction < 1)
 		{	
@@ -1115,17 +1213,15 @@ void(float dist) ai_run =
 			center = trace_fraction;
 			dis2 = dis1 * (center+1) / 2;
 			self.angles_y = self.ideal_yaw = vectoyaw(view);
-			makevectors(self.angles);
-
-			local vector vec_forward = v_forward, vec_right = v_right;
+			AngleVectors(self.angles, fwd, r, up);
 		
 			view = setvector(dis2, -16, 0);
-			Ltarg = ProjectAim(self.origin + '0 0 24', view, vec_forward, vec_right);
+			Ltarg = ProjectAim(self.origin + '0 0 24', view, fwd, r);
 			tracebox(self.origin, self.mins, self.maxs, Ltarg, FALSE, self);
 			left = trace_fraction;
 
 			view = setvector(dis2, 16, 0);
-			Rtarg = ProjectAim(self.origin + '0 0 24', view, vec_forward, vec_right);
+			Rtarg = ProjectAim(self.origin + '0 0 24', view, fwd, r);
 			tracebox(self.origin, self.mins, self.maxs, Rtarg, FALSE, self);
 			right = trace_fraction;
 		
@@ -1135,7 +1231,7 @@ void(float dist) ai_run =
 				if (left < 1)
 				{
 					view = setvector(dis2 * left * 0.5, -16, 0);
-					Ltarg = ProjectAim(self.origin, view, v_forward, v_right);
+					Ltarg = ProjectAim(self.origin, view, fwd, r);
 				}
 				self.aiflags |= AI_PURSUE_TEMP;
 				self.saved_goal = self.last_sighting;
@@ -1143,16 +1239,16 @@ void(float dist) ai_run =
 				self.last_sighting = Ltarg;
 				view = normalize(self.goalentity.origin - self.origin);
 				self.angles_y = self.ideal_yaw = vectoyaw(view);
-				dprint("turn left");
+				/*dprint("turn left");
 				dprint("\n");
-				//line(self.origin, self.goalentity.origin);
+				line(self.origin, self.goalentity.origin);*/
 			}
 			else if (right >= center && right > left)
 			{
 				if (right < 1)
 				{
 					view = setvector(dis2 * right * 0.5, 16, 0);
-					Rtarg = ProjectAim(self.origin, view, v_forward, v_right);
+					Rtarg = ProjectAim(self.origin, view, fwd, r);
 				}
 				self.aiflags |= AI_PURSUE_TEMP;
 				self.saved_goal = self.last_sighting;
@@ -1160,17 +1256,17 @@ void(float dist) ai_run =
 				self.last_sighting = Rtarg;
 				view = normalize(self.goalentity.origin - self.origin);
 				self.angles_y = self.ideal_yaw = vectoyaw(view);
-				dprint("turn right");
-				dprint("\n");
+				//dprint("turn right");
+				//dprint("\n");
 				//line(self.origin, self.goalentity.origin);
 			}
 		}
-		else
+	/*	else
 		{
-			dprint("good path");
-			dprint("\n");
+			//dprint("good path");
+			//dprint("\n");
 			//line(self.origin, self.goalentity.origin);
-		}
+		}*/
 	}
 		
 // head straight in
@@ -1178,4 +1274,63 @@ void(float dist) ai_run =
 	M_MoveToGoal (dist);		// done in C code...
 	remove(tempgoal);
 	self.goalentity = save;
+}
+
+.float fly_roll;
+.float fly_pitch;
+
+void ai_adjustflyangle (float fly_speed) { // doom 3 source
+
+	if (!(self.flags & FL_FLY))
+		return;
+
+	vector vel;
+    float     speed;
+    float     roll;
+    float     pitch;
+	vector fwd, r, u;
+	//float diff;
+
+//	vector ango = [self.angles[1], self.idea_yaw, self.angles]
+	
+	AngleVectors(self.angles, fwd, r, u);
+    vel = normalize(self.goalentity.origin - self.origin) * fly_speed;
+	vel *= 25;
+
+	speed = vlen(vel);
+
+//	bprint ("yaw: ", ftos(ang[1]),"\n");
+
+	//bprint ("speed: ", ftos(speed),"\n");
+    if ( speed < 5) {
+        roll = 0;
+        pitch = 0;
+    } else {
+        roll = vel * r * -90 / fly_speed;
+        if ( roll > 60 ) {
+            roll = 60;
+        } else if ( roll < -60 ) {
+            roll = -60;
+        }
+	
+        pitch = vel * u * -45 / fly_speed;
+        if ( pitch > 30 ) {
+            pitch = 30;
+        } else if ( pitch < -30 ) {
+            pitch = -30;
+        }
+
+		//bprint ("calculated roll: ", ftos(roll),"\n");
+		//bprint ("calculated pitch: ", ftos(pitch),"\n");
+    }
+
+
+    self.fly_roll = self.fly_roll * 0.95 + roll * 0.05;
+	self.fly_pitch = self.fly_pitch * 0.95 +  pitch * 0.05;
+
+	//bprint ("fly_pitch: ", ftos(fly_pitch),"\n");
+	//bprint ("fly_roll: ", ftos(fly_roll),"\n");
+
+	self.angles[2] = self.fly_roll;
+	self.angles[0] = self.fly_pitch;
 }

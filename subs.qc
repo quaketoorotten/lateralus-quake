@@ -245,7 +245,7 @@ match (string)self.target and call their .use function
 */
 void() SUB_UseTargets =
 {
-	local entity t, stemp, otemp, act;
+	entity t, stemp, otemp, act;
 
 //
 // check for a delay
@@ -263,46 +263,43 @@ void() SUB_UseTargets =
 		t.target = self.target;
 		return;
 	}
-	
-	
+
+
 //
 // print the message
 //
 	if (activator.classname == "player" && self.message != "")
 	{
-		centerprint (activator, self.message);
+		centerprint(activator, self.message);
 		if (!self.noise)
-			sound (activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
+			sound(activator, CHAN_VOICE, "misc/talk.wav", 1, ATTN_NORM);
 	}
 
 //
 // kill the killtagets
 //
-	if (self.killtarget != "" && self.killtarget != " ")
+	if (self.killtarget)
 	{
 		t = world;
 		do
 		{
-			t = find (t, targetname, self.killtarget);
+			t = find(t, targetname, self.killtarget);
 			if (!t)
 				return;
-			if((t.classname == "func_explosive") && (t.targetname == self.killtarget)) // make breakables blow up not disapear
-				T_Damage (t, activator, activator.origin, activator, t.health, 0);
-			else
-				remove (t);
-		} while ( 1 );
+			remove(t);
+		} while (1);
 	}
-	
+
 //
 // fire targets
 //
-	if (self.target != "" && self.target != " ")
+	if (self.target)
 	{
 		act = activator;
 		t = world;
 		do
 		{
-			t = find (t, targetname, self.target);
+			t = find(t, targetname, self.target);
 			if (!t)
 			{
 				return;
@@ -314,17 +311,16 @@ void() SUB_UseTargets =
 			if (self.use != SUB_Null)
 			{
 				if (self.use)
-					self.use ();
+					self.use();
 			}
 			self = stemp;
 			other = otemp;
 			activator = act;
-		} while ( 1 );
+		} while (1);
 	}
-	
+
 
 };
-
 //============================================================
 
 float(entity e) SUB_KillBox =
@@ -368,7 +364,6 @@ void(float start, float end, void() thinker, float speed, void() extra_thinker) 
 	self.nextthink = time + speed;
 
 	extra_thinker();
-	player_firegun ();
 };
 
 void(float start, float end, void() thinker, float speed, void() extra_thinker) SUB_Animate =
@@ -463,7 +458,10 @@ float rand() =
 };
 
 void(vector start, vector pos) line = 
-{
+{	
+	if (cvar("developer") == 0)
+		return;
+
 	WriteByte(MSG_BROADCAST, SVC_TEMPENTITY);
 	WriteByte(MSG_BROADCAST, TE_LIGHTNING2);
 
@@ -475,5 +473,322 @@ void(vector start, vector pos) line =
 	WriteCoord(MSG_BROADCAST, pos_x);
 	WriteCoord(MSG_BROADCAST, pos_y);
 	WriteCoord(MSG_BROADCAST, pos_z);
+};
+
+//
+// CheckSpawnPoint
+//
+// PMM - checks volume to make sure we can spawn a monster there (is it solid?)
+//
+// This is all fliers should need
+float (vector Eorigin, vector Emins, vector Emaxs) CheckSpawnPointQ2 =
+{
+	if (!Emins || !Emaxs)
+		return FALSE;
+	
+	local float		allsolid;
+	local float		 startsolid;
+	
+	tracebox (Eorigin, Emins, Emaxs, Eorigin + '0 0 24', 0, self);
+	allsolid = trace_allsolid;
+	startsolid = trace_startsolid;
+
+	if (startsolid || allsolid)
+		return FALSE;
+
+	if (trace_ent != world)
+		return FALSE;
+
+	return TRUE;
+};
+
+typedef struct { // what am i even doing
+	float allsolid;
+	float startsolid;
+	float fraction;
+	
+	vector endpos;
+	vector plane_normal;
+	float plane_dist;
+	entity _ent;
+
+	float inopen;
+	float inwater;
+	
+} trace_t;
+
+//
+// CheckGroundSpawnPoint
+//
+// PMM - used for walking monsters
+//  checks:
+//		1)	is there a ground within the specified height of the origin?
+//		2)	is the ground non-water?
+//		3)	is the ground flat enough to walk on?
+//
+float (vector ent_origin, vector ent_mins, vector ent_maxs, float height, float gravity) CheckGroundSpawnPoint =
+{
+	if (!CheckSpawnPointQ2 (ent_origin, ent_mins, ent_maxs))
+		return FALSE;
+
+	vector stop = ent_origin;
+	stop[2] = ent_origin[2] + ent_mins[2] - height;
+
+//	bprint (ftos(stop[2]), "\n");
+
+	trace_t tr;
+	tracebox (ent_origin, ent_mins, ent_maxs, stop, 0, self);
+
+	 tr.fraction = trace_fraction;
+	tr.endpos = trace_endpos; 	
+
+	//bprint (vtos(tr.plane_normal), "\n");
+
+	// it's not going to be all solid or start solid, since that's checked above
+	if ((tr.fraction < 1))
+	{
+		// we found a non-water surface down there somewhere.  now we need to check to make sure it's not too sloped
+		//
+		// algorithm straight out of m_move.c:M_CheckBottom()
+		//
+
+		// first, do the midpoint trace
+		vector mins = tr.endpos + ent_mins;
+		vector maxs = tr.endpos + ent_maxs;
+
+		// first, do the easy flat check
+		vector start;
+
+		if (gravity > 0)
+			start[2] = maxs[2] + 1;
+		else
+			start[2] = mins[2] - 1;
+
+		for (float x = 0; x <= 1; x++)
+			for (float y = 0; y <= 1; y++)
+			{
+				start[0] = x ? maxs[0] : mins[0];
+				start[1] = y ? maxs[1] : mins[1];
+				if (pointcontents (start) != CONTENT_SOLID)
+					goto realcheck;
+			}
+
+		// if it passed all four above checks, we're done
+		return TRUE;
+
+realcheck:
+		// check it for real
+		start[0] = stop[0] = (mins[0] + maxs[0])*0.5;
+		start[1] = stop[1] = (mins[1] + maxs[1])*0.5;
+		start[2] = mins[2];
+		traceline (start, stop, 0, self);
+
+		 tr.fraction = trace_fraction;
+		tr.endpos = trace_endpos; 
+
+		if (tr.fraction == 1.0)
+			return FALSE;
+
+		float mid, bottom;
+
+		if (gravity < 0)
+		{
+			start[2] = mins[2];
+			stop[2] = start[2] - 18 - 18;
+			mid = bottom = tr.endpos[2] + ent_mins[2];
+		}
+		else
+		{
+			start[2] = maxs[2];
+			stop[2] = start[2] + 18 + 18;
+			mid = bottom = tr.endpos[2] - ent_maxs[2];
+		}
+
+		for (float x = 0; x <= 1; x++)
+			for (float y = 0; y <= 1; y++)
+			{
+				start[0] = stop[0] = x ? maxs[0] : mins[0];
+				start[1] = stop[1] = y ? maxs[1] : mins[1];
+
+				traceline (start, stop, 0, self);
+
+			 	tr.fraction = trace_fraction;
+				tr.endpos = trace_endpos; 
+
+				if(gravity > 0)
+				{
+					if (tr.fraction != 1.0 && tr.endpos[2] < bottom)
+						bottom = tr.endpos[2];
+					if (tr.fraction == 1.0 || tr.endpos[2] - mid > 18)
+						return FALSE;
+				}
+				else
+				{
+					if (tr.fraction != 1.0 && tr.endpos[2] > bottom)
+						bottom = tr.endpos[2];
+					if (tr.fraction == 1.0 || mid - tr.endpos[2] > 18)
+						return FALSE;
+				}
+			}
+
+		return TRUE; // we can land on it, it's ok
+	}
+
+	// otherwise, it's either water (bad) or not there (too far)
+	// if we're here, it's bad below
+	return FALSE;
+};
+
+entity CreateGroundMonster (vector org, vector ang, vector entMins, vector entMaxs, string name, void() name2, float height) =
+{
+//	trace_t		tr;
+
+	if (org == '0 0 0')
+		return world;
+
+	// check the ground to make sure it's there, it's relatively flat, and it's not toxic
+	if (!CheckGroundSpawnPoint(org, entMins, entMaxs, height, -1))
+		return world;
+
+	return CreateMonster (org, ang, name, name2);
+};
+
+entity CreateMonster(vector org, vector ang, string name, void() monster) =
+{
+	local entity newEnt;
+
+	newEnt = spawn();
+
+	newEnt.origin = org;
+	newEnt.angles = ang;
+	newEnt.classname = name;
+	newEnt.flags |= FL_RESURRECTED;
+
+	local entity oself = self;
+	self = newEnt;
+	monster();
+	SUB_KillBox (self);
+	self = oself;
+	
+	return newEnt;
+};
+
+// FindSpawnPoint
+// PMM - this is used by the medic commander (possibly by the carrier) to find a good spawn point
+// if the startpoint is bad, try above the startpoint for a bit
+
+vector FindSpawnPoint (vector startpoint, vector Emins, vector Emaxs, vector spawnpoint, float maxMoveUp) =
+{
+	local float		height;
+	local vector		top;
+	local float		allsolid;
+	local float		 start_solid;
+
+	height = Emaxs[2] - Emins[2];
+
+//	tr = gi.trace (startpoint, mins, maxs, startpoint, NULL, MASK_MONSTERSOLID|CONTENTS_PLAYERCLIP);
+	tracebox(startpoint, Emins, Emaxs, startpoint, FALSE, self);
+	allsolid = trace_allsolid;
+	start_solid = trace_startsolid;
+
+	if((start_solid || allsolid))
+	{
+		top = startpoint;
+		top[2] += maxMoveUp;
+
+		tracebox(top, Emins, Emaxs, startpoint, FALSE, self);
+		allsolid = trace_allsolid;
+		start_solid = trace_startsolid;
+
+		if (start_solid || allsolid || trace_ent)
+			return '0 0 0';
+		else
+		{
+//			if ((g_showlogic) && (g_showlogic->value))
+//				gi.dprintf ("FindSpawnPoint: %s -> %s\n", vtos (startpoint), vtos (tr.endpos));
+			//spawnpoint = trace_endpos;
+			return trace_endpos;
+		}
+	}
+	else
+	{
+		//spawnpoint = startpoint;
+		return startpoint;
+	}
 }
+
+vector vectoanglesq2 (vector vec)
+{
+	float forward;
+	float yaw, pitch;
+
+	if (vec[1] == 0 && vec[0] == 0)
+	{
+		if (vec[2] > 0)
+			return '-90 0 0';
+		else
+			return  '-270 0 0';
+	}
+
+	// PMM - fixed to correct for pitch of 0
+	if (vec[0])
+		yaw = (atan2(vec[1], vec[0]) * (180 / M_PI));
+	else if (vec[1] > 0)
+		yaw = 90;
+	else
+		yaw = 270;
+
+	if (yaw < 0)
+		yaw += 360;
+
+	forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
+	pitch = (atan2(vec[2], forward) * (180 / M_PI));
+
+	if (pitch < 0)
+		pitch += 360;
+
+	vec_x = pitch;
+	vec_y = yaw;
+	vec_z = 0;
+	
+	return vec;
+}
+
+void AngleVectors (vector  angles,__inout vector forward,__inout vector right,__inout vector  up)
+{
+	float angle = angles[1] * (M_PI * 2 / 360);
+	float sy = sin(angle);
+	float cy = cos(angle);
+	angle = angles[0] * (M_PI * 2 / 360);
+	float sp = sin(angle);
+	float cp = cos(angle);
+	angle = angles[2] * (M_PI * 2 / 360);
+	float sr = sin(angle);
+	float cr = cos(angle);
+
+	forward_x = cp * cy;
+	forward_y = cp * sy;
+	forward_z = -sp;
+
+	right_x = (-1 * sr * sp * cy + -1 * cr * -sy);
+	right_y = (-1 * sr * sp * sy + -1 * cr * cy);
+	right_z = -1 * sr * cp;
+	
+	up_x = (cr * sp * cy + -sr * -sy);
+	up_y = (cr * sp * sy + -sr * cy);
+	up_z = cr * cp;
+}
+
+
+void() SUB_Assign_NoAmmo 	  = {	self.currentammo = 0;}
+void() SUB_Assign_Saved_Shells1 = {	self.currentammo = self.savedammo_shells;}
+void() SUB_Assign_Saved_Shells2 = {	self.currentammo = self.savedammo_shells2;}
+void() SUB_Assign_Saved_ShellsDB = {self.currentammo = self.savedammo_shellsDB;}
+void() SUB_Assign_Saved_Nails1  = {	self.currentammo = self.savedammo_nails;}
+void() SUB_Assign_Saved_Nails2  = {	self.currentammo = self.savedammo_nails2;}
+void() SUB_Assign_Saved_Rockets = {	self.currentammo = self.savedammo_rockets;}
+void() SUB_Assign_Rockets 	  = {	self.currentammo = self.ammo_rockets;}
+
+void() SUB_Assign_Saved_Cells1  = {	self.currentammo = self.savedammo_cells;}
+void() SUB_Assign_Saved_Cells2  = {	self.currentammo = self.savedammo_cells2;}
 

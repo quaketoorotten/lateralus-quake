@@ -16,7 +16,8 @@ uhhhh
 
 
 void(vector org) TE_GUNSMOKE =
-{
+{	
+	org += self.velocity * 0.04;
 	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
 	WriteByte (MSG_BROADCAST, TE_GUNSHOT);
 	WriteCoord (MSG_BROADCAST, org_x);
@@ -24,7 +25,7 @@ void(vector org) TE_GUNSMOKE =
 	WriteCoord (MSG_BROADCAST, org_z);
 };
 
-void(string mdl, vector org, vector dir) _casing =
+void(string mdl, vector org, vector dir, vector vel) _casing =
 {
 	local entity casing;
 	casing = spawn();
@@ -34,13 +35,11 @@ void(string mdl, vector org, vector dir) _casing =
     	setorigin(casing, org);
 	
 	casing.movetype = MOVETYPE_BOUNCE;
-   	casing.solid = SOLID_NOT;
+   	casing.solid = SOLID_TRIGGER;
 
-	makevectors (self.v_angle);
-	casing.velocity = v_right*-75 + v_up*(25 + random()*25);
-	casing.angles = vectoangles(v_forward);
-	casing.velocity += self.velocity;
-	//casing.scale = 1.5;	
+	//makevectors (self.v_angle);
+	casing.velocity = vel;
+	casing.angles = vectoangles(aim(self,10000));
 
 	casing.nextthink =  time + 10 + random()*5;
 	casing.think = SUB_Remove;
@@ -56,7 +55,7 @@ void(string mdl, vector org) _mag =
     	setorigin(casing, org);
 	
 	casing.movetype = MOVETYPE_BOUNCE;
-   	casing.solid = SOLID_NOT;
+   	casing.solid = SOLID_TRIGGER;
 
 	casing.velocity = '0 0 10';
 	casing.scale = 0.8;	
@@ -66,12 +65,39 @@ void(string mdl, vector org) _mag =
 	casing.avelocity = '0 600 600';
 };
 
+float() BFGNoAmmo = 
+{	
+	if (self.savedammo_cells2 > 29)	
+          	return FALSE;
+
+	if (self.ammo_cells > 30)
+		return FALSE;
+
+	return TRUE;
+};
+
+
+float() AmmoLessCheck = 
+{	
+	return FALSE;
+};
 
 /*
 ================
 W_FireShotgun
 ================
 */
+float() PistolNoAmmo = 
+{	
+	if (self.savedammo_shells2 > 0)	
+        return FALSE;
+
+	if (self.ammo_shells > 1)
+		return FALSE;
+
+	return TRUE;
+};
+
 void() W_FireShotgun =
 {
     local vector dir;
@@ -81,7 +107,7 @@ void() W_FireShotgun =
 
 	if (deathmatch)
 	{
-		dmg = 12; 
+		dmg = 8; 
 		kick = 0.5;
 	}
 	
@@ -98,9 +124,9 @@ void() W_FireShotgun =
 			sound(self, CHAN_WEAPON, "weapons/pistol/pistol_shot_04a.wav", 1, ATTN_NORM);
 	}
 
-    self.punchangle_x = -2;
+	self.punchangle = setvector (-2, crandom() * 0.2, crandom() * 0.2);
 
-	offset = setvector (0, 8, self.view_ofs[1] - 8);
+	offset = setvector (0, 8, self.view_ofs[2] - 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -108,13 +134,13 @@ void() W_FireShotgun =
     dir = aim(self, 10000);
 
       SuperDamageSound();
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24');
+	TE_GUNSMOKE (start + v_forward * 32 + '0 0 4');
     FireBullet (start,  dir, 0, 0, dmg, kick, TE_SPIKE);
 	
 	offset = setvector (14, 8, self.view_ofs[1] + 16);
 	makevectors(self.v_angle);
 
-	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000));
+	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000), self.velocity + v_right*-75 + v_up*(25 + random()*50));
 };
 
 
@@ -123,12 +149,23 @@ void() W_FireShotgun =
 W_FireSuperShotgun
 ================
 */
+float() ShotgunNoAmmo = 
+{	
+	if (self.savedammo_shells > 0)	
+        return FALSE;
+
+	if (self.ammo_shells > 1)
+		return FALSE;
+
+	return TRUE;
+};
+
 void() W_FireSuperShotgun =
 {
     local vector dir;
 	local vector offset, start;
 
-	local float dmg = 14, kick = 16;
+	local float dmg = 14, kick = 5;
 
 	if (deathmatch)
 	{
@@ -136,18 +173,22 @@ void() W_FireSuperShotgun =
 		kick = 4;
 	}
 
-	local float r = rint(random() * 2);	
+	local float r = rint(random() * 4);	
 
-	if (r == 2)
+	if (r == 4)
 		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_01.wav", 1, ATTN_NORM);
-	else if (r == 1)
+	else if (r == 3)
 		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_02.wav", 1, ATTN_NORM);
-	else
+	else if (r == 2)
 		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_03.wav", 1, ATTN_NORM);
+	else if (r == 1)
+		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_04.wav", 1, ATTN_NORM);
+	else
+		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_05.wav", 1, ATTN_NORM);
 
-    self.punchangle_x = -4;
+  self.punchangle = setvector (-4, crandom() * 0.3, crandom() * 0.3);
 
-	offset = setvector (0, 8, self.view_ofs[1] - 8);
+	offset = setvector (0, 4, self.view_ofs[2] - 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -156,29 +197,100 @@ void() W_FireSuperShotgun =
 	
       SuperDamageSound();
     FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD, SHOTGUN_VSPREAD, dmg, kick, TE_SPIKE);
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24');
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24' + v_up * 2);
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24' + v_right * 2);
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24' + v_right * -2);
+	
+	offset = setvector (0, 6, self.view_ofs[2] - 2);
+	makevectors(self.v_angle);
+	start = ProjectAim (self.origin, offset, v_forward, v_right);
+	
+	TE_GUNSMOKE (start + v_forward * 32);
+	TE_GUNSMOKE (start + v_forward * 32 + v_up * 2);
+	TE_GUNSMOKE (start + v_forward * 32 + v_right * 2);
+	TE_GUNSMOKE (start + v_forward * 32 + v_right * -2);
 
    // FirePallets (SSHOTGUN_PELLETS / 2, start,  dir, SSHOTGUN_HSPREAD*1.3, SHOTGUN_VSPREAD, dmg, kick, TE_GUNSHOT);
 };
+
+float() DoubleBarrelNoAmmo = 
+{	
+	if (self.savedammo_shellsDB > 0)	
+        return FALSE;
+
+	if (self.ammo_shells > 2)
+		return FALSE;
+
+	//if (self.savedammo_shells < 2)	
+    //      	return TRUE;
+
+	return TRUE;
+};
+
+void() W_FireDoubleBarrel =
+{
+    local vector dir;
+	local vector offset, start;
+
+	local float dmg = 14, kick = 5;
+
+	if (deathmatch)
+	{
+		dmg = 8; 
+		kick = 4;
+	}
+
+	sound(self, CHAN_WEAPON, "weapons/ssg/fire_04.wav", 1, ATTN_NORM);
+
+  self.punchangle = setvector (-6, crandom() * 0.3, crandom() * 0.3);
+
+	offset = setvector (0, 4, self.view_ofs[2] - 8);
+	makevectors(self.v_angle);
+	start = ProjectAim (self.origin, offset, v_forward, v_right);
+
+    self.currentammo -= 2;
+    dir = aim(self, 10000);
+	
+      SuperDamageSound();
+    	FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD*2, SHOTGUN_VSPREAD*1.3, dmg, kick, TE_SPIKE);
+	FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD*2, SHOTGUN_VSPREAD*1.3, dmg, kick, TE_SPIKE);
+
+	offset = setvector (0, 6, self.view_ofs[2] - 2);
+	makevectors(self.v_angle);
+	start = ProjectAim (self.origin, offset, v_forward, v_right);
+	
+	TE_GUNSMOKE (start + v_forward * 32);
+	TE_GUNSMOKE (start + v_forward * 32 + v_up * 2);
+	TE_GUNSMOKE (start + v_forward * 32 + v_right * 2);
+	TE_GUNSMOKE (start + v_forward * 32 + v_right * -2);
+
+   // FirePallets (SSHOTGUN_PELLETS / 2, start,  dir, SSHOTGUN_HSPREAD*1.3, SHOTGUN_VSPREAD, dmg, kick, TE_GUNSHOT);
+};
+
 
 /*
 ================
 W_FireMachineGun
 ================
 */
+float() MachineGunNoAmmo = 
+{	
+	if (self.savedammo_nails > 0)	
+          	return FALSE;
+
+	if (self.ammo_nails > 1)
+		return FALSE;
+
+	return TRUE;
+};
+
 void() W_FireMachineGun =
 {
       local vector dir;
 	local vector offset, start;
 
-	local float dmg = 13, kick = 2;
+	local float dmg = 14, kick = 2;
 
 	if (deathmatch)
 	{
-		dmg = 8; 
+		dmg = 6; 
 		kick = 0.5;
 	}
 
@@ -195,22 +307,22 @@ void() W_FireMachineGun =
 
 	self.punchangle = setvector (crandom() * 0.7, crandom() * 0.7, crandom() * 0.7);
 
-	offset = setvector (0, 8, self.view_ofs[1] - 8);
+	offset = setvector (0, 4, self.view_ofs[2] - 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
-    self.currentammo = self.currentammo - 1;
+    self.currentammo -= 1;
     dir = aim(self, 10000);
 	
       SuperDamageSound();
-		TE_GUNSMOKE (start + v_forward * 32 + '0 0 24');
+		TE_GUNSMOKE (start + v_forward * 32 + '0 0 4');
 
     FireBullet (start,  dir, MACHINEGUN_HSPREAD, MACHINEGUN_VSPREAD, dmg, kick, TE_SPIKE);
 
 		offset = setvector (12, 0, self.view_ofs[1] + 18);
 	makevectors(self.v_angle);
 
-	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000));
+	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000), self.velocity + v_right*-75 + v_up*(25 + random()*50));
 };
 
 /*
@@ -218,66 +330,96 @@ void() W_FireMachineGun =
 W_FireChaineGun
 ================
 */
+float() ChainGunNoAmmo = 
+{	
+	
+	if (self.savedammo_nails2 > 0)	
+        return FALSE;
+
+	if (self.ammo_nails > 1)
+		return FALSE;
+
+	return TRUE;
+};
+
 void() W_FireChainGun =
 {	
 
       local vector dir;
 	local vector offset, start;
 
-	local float dmg = 20, kick = 2, r, u;
+	local float dmg = 16, kick = 4, r, u;
+
+	if (self.currentammo < 1)
+		return;
 
 	if (deathmatch)
 	{
-		dmg = 2; 
-		kick = 0.5;
+		dmg = 4; 
+		kick = 12;
 	}
 
-  	 AutofireChainGunNoise ();
-
-	self.punchangle = setvector (crandom() * 0.7, crandom() * 0.7, crandom() * 0.7);
-	//bprint (vtos(self.punchangle));
+	self.punchangle = setvector (crandom() * 0.8, crandom() * 0.8, crandom() * 0.8);
+	//bprint ("check");
 	//bprint ("\n");
 
 	makevectors(self.v_angle);
 	
-	r = 7 + crandom()*4;
+	r = 3 + crandom()*4;
 	u = crandom()*4;
 		
-	offset = setvector (0, r, u + self.view_ofs[1] - 8);
+	offset = setvector (0, r, u + self.view_ofs[2] - 8);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
-    self.currentammo = self.savedammo_nails2 = self.savedammo_nails2 - 1;
+    self.currentammo -= 1;
     dir = aim(self, 10000);
 	
 	self.effects = self.effects | EF_MUZZLEFLASH;
 	
       SuperDamageSound();
-	TE_GUNSMOKE (start + v_forward * 32 + '0 0 24' + v_right * -2);
+	TE_GUNSMOKE (start + v_forward * 32  + '0 0 4');
 
     FireBullet (start,  dir, CHAINGUN_HSPREAD, CHAINGUN_VSPREAD, dmg, kick, TE_SPIKE);
 
 	offset = setvector (10, -2, self.view_ofs[1] + 16);
 	makevectors(self.v_angle);
 
-	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000));
+	_casing ("progs/shell.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*50));
 };
 
 void() W_FireChainGunSpinning =
 {		
 	if (!self.button0)
 		return;
-
-	if (self.weaponframe >= 25 && self.weaponframe <= 32 && self.weaponframe % 3)
-	{
-		self.solid = SOLID_BBOX;
-		W_FireChainGun ();
-		self.solid = SOLID_SLIDEBOX;
-	}
 	
+	local float shots = 0;
 
+	if (self.weaponframe >= 27 && self.weaponframe <= 30 && self.button0)
+		shots = 2;
+	
+	if (self.weaponframe >= 30 && self.weaponframe <= 35 && self.button0)
+		shots = 3;
+
+	if (shots < 1)
+		return;
+
+	AutofireMachineNoise ();
+
+	self.solid = SOLID_BBOX;
+	
+	for (float i = 0; i < shots; i++)
+		W_FireChainGun ();
+	
+	self.solid = SOLID_SLIDEBOX;
 };
 
 //=============================================================================
+
+void() rocketimpact =
+{
+	pointparticles (particleeffectnum("TE_ROCKETIMPAC"), self.origin);
+	pointparticles (particleeffectnum("TE_ROCKETIMPAC2"), self.origin);
+}
 
 void() T_MissileTouch =
 {
@@ -294,27 +436,26 @@ void() T_MissileTouch =
         return;
     }
 
-    damg = 170;
+    damg = 165 + random()*20;
 	
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC"), self.origin);
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC2"), self.origin);
+	rocketimpact  ();
 	
-    self.origin = self.origin - 16* normalize(self.velocity);
+	 T_RadiusDamage(self, self.owner, 180, 175, other);
+	
+    self.origin = self.origin - 32* normalize(self.velocity);
 
     if (other.takedamage)
     {
         T_Damage(other, self, self.origin, self.owner, damg, 50);
+
+	for(float i = 0; i<6;i++)
+		SpawnBlood (self.origin, '0 0 0', 20);
     }
-   
-    // don't do radius damage to the other, because all the damage
-    // was done in the impact
-    T_RadiusDamage(self, self.owner, 150, 175, other);
-	
 	self.owner.punchangle = setvector (crandom() * 1.2, crandom() * 1.2, crandom() * 1.2);
 
 	
     //sound(self, CHAN_WEAPON, "weapons/r_exp3.wav", 1, ATTN_NORM)
-    BecomeExplosion();
+    BecomeExplosionPlayer();
 };
 
 
@@ -335,6 +476,8 @@ void() rocketThink =
 	self.nextthink = time + 0.01;
 };
 
+
+
 void() W_FireRocket =
 {
     local entity missile;
@@ -344,17 +487,19 @@ void() W_FireRocket =
 
    	RocketNoise ();
 
-    self.punchangle_x = -2;
+    self.punchangle = setvector (crandom() * 1.2, crandom() * 1.2, crandom() * 1.2);
 
     missile = spawn();
     missile.owner = self;
     missile.movetype = MOVETYPE_FLY;
     missile.solid = SOLID_BBOX;
     missile.classname = "missile";
+	missile.shake_interval = 0.5;
+	missile.shake_time = 1;
 
     // set missile speed
 
-    offset = setvector (8, 8, self.view_ofs[1] + 8);
+    offset = setvector (0, 8, self.view_ofs[1] + 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -364,7 +509,7 @@ void() W_FireRocket =
 	TE_GUNSMOKE (start + v_forward * 32 + v_right * -2);
 
     missile.velocity = aim(self, 1000);
-    missile.velocity = missile.velocity * 1500;
+    missile.velocity = missile.velocity * 800;
     missile.angles = vectoangles(missile.velocity);
 
     missile.touch = T_MissileTouch;
@@ -391,12 +536,13 @@ void() W_FireRocket =
 
 void() GrenadeExplode =
 {
-    T_RadiusDamage(self, self.owner,self.dmg, 150, world);
-
-		pointparticles (particleeffectnum("TE_ROCKETIMPAC"), self.origin);
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC2"), self.origin);
-
-    BecomeExplosion();
+    T_RadiusDamage(self, self.owner,self.dmg, 180, world);
+	
+	
+	rocketimpact  ();
+	
+	self.origin_z += 16;
+    BecomeExplosionPlayer();
 };
 
 
@@ -461,10 +607,12 @@ void() W_FireGrenade =
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
     missile.classname = "grenade";	
+	missile.shake_interval = 0.4;
+	missile.shake_time = 1;
 	missile.traileffectnum = particleeffectnum ("EF_NADETRAIL");
 
     // set missile speed
-    offset = setvector (8, 8, self.view_ofs[1] + 8);
+    offset = setvector (0, 8, self.view_ofs[1] + 8);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 	
@@ -506,9 +654,11 @@ void(float speed, float timer, float bool) W_FireGrenade2 =
     missile.movetype = MOVETYPE_BOUNCE;
     missile.solid = SOLID_BBOX;
     missile.classname = "grenade";
+	missile.shake_interval = 0.5;
+	missile.shake_time = 1;
 
     // set missile speed
-    offset = setvector (8, 8, self.view_ofs[1] + 16);
+    offset = setvector (0, 8, self.view_ofs[1] + 16);
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
 
@@ -545,59 +695,52 @@ void(float speed, float timer, float bool) W_FireGrenade2 =
 	SuperDamageSound();
 };
 
+float() RocketLauncherNoAmmo = 
+{	
+	if (self.savedammo_rockets > 0)	
+        return FALSE;
+	if (self.ammo_rockets > 1)
+		return FALSE;
 
-//=============================================================================
-
-void(vector org) anchor =
-{
-	newmis = spawn();
-	newmis.velocity = '0 0 0';
-	newmis.origin = org;
-	newmis.think = SUB_Remove;
-	newmis.nextthink = time + 0.2;
+	return TRUE;
 };
 
-void() W_FireRail =
-{
-	local	vector  dir, start, offset;
+float() GrenadeNoAmmo = 
+{	
+	if (self.ammo_rockets > 1)
+		return FALSE;
 
-	if (self.ammo_nails < 3)
-		return;
+	return TRUE;
+};
+//=============================================================================
 
-	offset = setvector(8, 8, self.view_ofs[1] + 12);
+float() PlasmaNoAmmo = 
+{	
+	if (self.savedammo_cells > 0)	
+        return FALSE;
 
-	self.punchangle_x = -3;
+	if (self.ammo_cells > 1)
+		return FALSE;
 
-	makevectors(self.v_angle);
-	start = ProjectAim (self.origin, offset, v_forward, v_right);
-	dir = aim(self,10000);
-	
-	 // sound(self, CHAN_WEAPON, "weapons/railgf1a.wav", 1, ATTN_NORM);
-
-	self.currentammo = self.ammo_nails = self.ammo_nails - 3;
-	
-	anchor (start);
-	fireRail (start, dir, newmis, self, 125, 200, TE_BEAM, 8192);
-      SuperDamageSound();
-
+	return TRUE;
 };
 
 void() W_FireHyper = 
 {
 	local vector dir, offset, start;
 
-	offset = setvector(24, 8, self.view_ofs[1] + 12);
+	offset = setvector(0, 8, self.view_ofs[1] + 12);
 
 	makevectors(self.v_angle);
 	start = ProjectAim (self.origin, offset, v_forward, v_right);
-
-	self.punchangle_x = -1;
 	
 	self.effects = self.effects | EF_MUZZLEFLASH;
+
+	self.punchangle = setvector (crandom() * 0.7, crandom() * 0.7, crandom() * 0.7);
 	
 	dir = aim(self,10000);
 
-	self.currentammo = self.currentammo - 1;
+	self.currentammo -= 1;
 
 	local float r = rint(random() * 2);
 	
@@ -607,9 +750,9 @@ void() W_FireHyper =
 		    sound(self, CHAN_WEAPON, "weapons/plasma/2plasma_fire3.wav", 1, ATTN_NORM);
 	else
 		    sound(self, CHAN_WEAPON, "weapons/plasma/2plasma_fire6.wav", 1, ATTN_NORM);
-
 	
-	LaunchLaser (start, dir);
+	makevectors(self.v_angle);
+	LaunchLaser (start, dir, v_right * (crandom() * 15), v_up * (crandom() * 15));
       SuperDamageSound();
 
 	if (self.flags & FL_CLIENT)
@@ -647,7 +790,7 @@ void(void() sfx1, void() sfx2) W_FireAxe =
 	local	vector	source;
 	local	vector	org;
 	local float		spew = 15;
-	local float		dmg = 20, kick = 5, crit = FALSE;
+	local float		dmg = 25, kick = 5, crit = FALSE;
 	// string punchnoise = ;
 	
 	makevectors (self.v_angle);
@@ -669,7 +812,7 @@ void(void() sfx1, void() sfx2) W_FireAxe =
 	{
 		trace_ent.axhitme = 1;
 
-		SpawnBlood (org, vel);
+		SpawnBlood (org, vel, kick);
 
 		T_Damage (trace_ent, self, trace_endpos, self, dmg , kick);
 		sfx1 ();
@@ -678,162 +821,29 @@ void(void() sfx1, void() sfx2) W_FireAxe =
 	{	// hit wall
 		sfx2 ();
 		//stuffcmd (self, "vibrate tactile/player/axhit2.bnvib");
-		WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-		WriteByte (MSG_BROADCAST, TE_SPIKE);
-		WriteCoord (MSG_BROADCAST, org_x);
-		WriteCoord (MSG_BROADCAST, org_y);
-		WriteCoord (MSG_BROADCAST, org_z);
+
 	}
 };
-
-void() flash_update =
-{		
-	//bprint(ftos(self.owner.weaponframe),"\n");
-	if (self.owner.weaponframe == 155 || self.owner.health < 1)
-	{
-		remove(self);
-		return;
-	}
-
-       // Set Start Position
-        local vector offset = setvector (8, 24, self.owner.view_ofs[1] + 8);
-	  makevectors(self.owner.v_angle);
-	  local vector start = ProjectAim (self.owner.origin, offset, v_forward, v_right);
-
-        traceline (start , start + v_forward * 1024 , FALSE , self);
-
-        // Set the Flashlight's position
-
-        setorigin (self, trace_endpos+(v_forward * -5));
-
-        // Repeat it in 0.02 seconds...
-        self.nextthink = time + frametime;
-};
-
-void() flash_on =
-{
-        // Make a new entity to hold the Flashlight
-        local entity myflash;
-
-        // spawn flash
-        myflash = spawn ();
-        myflash.movetype = MOVETYPE_NONE;
-        myflash.solid = SOLID_NOT;
-        // this uses the s_bubble.spr, if you want it to be completly
-        // invisible you need to create a one pixel trancparent spirit
-        // and use it here...
-        setmodel (myflash, "progs/muzzleflash.spr"); 
-        setsize (myflash, '0 0 0', '0 0 0');
-
-        // Wire Player And Flashlight Together
-        myflash.owner = self;
-        self.flash = myflash;
-        
-        // give the flash a Name And Make It Glow
-        myflash.classname = "flash";
-        myflash.traileffectnum = particleeffectnum ("EF_FLASHLIGHT");
-        
-        // Set Start Position
-        local vector offset = setvector (8, 24, self.view_ofs[1] + 8);
-	  makevectors(self.v_angle);
-	  local vector start = ProjectAim (self.origin, offset, v_forward, v_right);
-
-        traceline (start , start + v_forward * 1024 , FALSE , self);
-        setorigin (myflash, trace_endpos);
-
-        // Start Flashlight Update
-        myflash.think = flash_update;
-        myflash.nextthink = time + 0.02;
-};
-
-.float flash_flag; // On/off for the flashlight
-.entity flash;   // flash entity
 
 //==============================================================================================
 
-/*PLAYER WEAPON USE
+/*PLAYER WEAPON FIRES
 */
 //==============================================================================================
 
-void() W_WeaponHandGr =
-{
-	self.weaponuse = player_flash;
-	W_WeaponFrame (14, 65, 154, 160, 155, 0, 0, 0, 0, 0, 0, 0);
-};
+/*
+============
+Fists
+============
+*/
 
-void() W_flashnoise =
-{
-	//bprint("cuh","\n");
-	if (self.weaponframe == 13)
-		flash_on ();
-};
-
-void() player_flashidle = 
-{
-	player_run ();
-	self.attack_finished = 0; 
-	self.weaponframe = 65;
-	self.weaponstate = WEAPON_IDLE;
-
-	return;
-};
-
-void() player_flashhitcheck = 
-{
-	switch(self.weaponframe)
-	{
-		case 18:
-		case 44:
-		self.solid = SOLID_BBOX;
-		W_FireAxe (W_WeaponBlasterHit, W_WeaponBlasterHit);
-		self.solid = SOLID_SLIDEBOX;
-		break;
-
-		default:
-		break;
-	}
-
-	return;
-};
-
-void() player_flash2 = [self.frame , player_flash2 ]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (39, 64, player_flashidle , 0.04, player_flashhitcheck );};
-void() player_flash1 = [self.frame , player_flash1 ]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (15, 38, player_flashidle , 0.04, player_flashhitcheck );};
-
-void() player_flash = 
-{	
-	if (self.weaponstate == WEAPON_USED) 
-		return;
-
-	local float r = rint(random() * 6);
-	
-	switch(r)
-	{
-		case 1:
-		player_flash2 ();
-		break;
-
-		default:
-		player_flash1 ();
-		break;
-	}
-};
-
-
-void() W_WeaponBlaster = 
-{	
-	self.weaponuse = player_blast;
-	W_WeaponFrame (11, 75, 120, 126, 121, 0, 0, 0, 0, 0, 0, 0);
-};
-
-void() W_WeaponBlasterNoise = 
+void() W_WeaponFistNoise = 
 {	
 	if (self.weaponframe == 0)
 		sound(self, CHAN_RELOAD, "weapons/fists/raise_fists_01.wav", 1, ATTN_NORM);
 };
 
-void() W_WeaponBlasterHit = 
+void() W_WeaponFistHit = 
 {
 	local float r = rint(random() * 3);
 	
@@ -857,17 +867,16 @@ void() W_WeaponBlasterHit =
 		}
 }
 
-void() player_blastidle = 
+void() player_fistidle = 
 {
 	player_run ();
-	self.attack_finished = 0; 
 	self.weaponframe = 75;
 	self.weaponstate = WEAPON_IDLE;
 
 	return;
 };
 
-void() player_blasthitcheck = 
+void() player_fisthitcheck = 
 {
 	switch(self.weaponframe)
 	{
@@ -876,7 +885,7 @@ void() player_blasthitcheck =
 		case 45:
 		case 61:
 		self.solid = SOLID_BBOX;
-		W_FireAxe (W_WeaponBlasterHit, W_WeaponBlasterHit);
+		W_FireAxe (W_WeaponFistHit, W_WeaponFistHit);
 		self.solid = SOLID_SLIDEBOX;
 		break;
 
@@ -887,16 +896,30 @@ void() player_blasthitcheck =
 	return;
 };
 
-void() player_blast4 = [self.frame , player_blast4]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (59, 74, player_blastidle, 0.04, player_blasthitcheck);};
-void() player_blast3 = [self.frame , player_blast3]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (43, 58, player_blastidle, 0.04, player_blasthitcheck);};
-void() player_blast2 = [self.frame , player_blast2]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (27, 42, player_blastidle, 0.04, player_blasthitcheck);};
-void() player_blast1 = [self.frame , player_blast1]
-{self.attack_finished = time + 20; self.weaponstate = WEAPON_USED; SUB_AnimateWeapon (12, 26, player_blastidle, 0.04, player_blasthitcheck);};
+void() player_fist4 = [self.frame, player_fist4]
+{	
+	self.weaponstate = WEAPON_USED; 
+	SUB_AnimateWeapon (59, 74, player_fistidle , 0.03, player_fisthitcheck);
+};
+void() player_fist3 = [self.frame, player_fist3]
+{	
+	self.frame++;
+	self.weaponstate = WEAPON_USED; 
+	SUB_AnimateWeapon (43, 58, player_fistidle , 0.03, player_fisthitcheck);
+};
+void() player_fist2 = [self.frame, player_fist2]
+{	
+	self.frame++;
+	self.weaponstate = WEAPON_USED; 
+	SUB_AnimateWeapon (27, 42, player_fistidle , 0.03, player_fisthitcheck);
+};
+void() player_fist1 = [self.frame, player_fist1]
+{	
+	self.weaponstate = WEAPON_USED; 
+	SUB_AnimateWeapon (12, 26, player_fistidle , 0.03, player_fisthitcheck);
+};
 
-void() player_blast = 
+void() player_punch = 
 {	
 	if (self.weaponstate == WEAPON_USED) 
 		return;
@@ -906,32 +929,35 @@ void() player_blast =
 	switch(r)
 	{
 		case 3:
-		player_blast4 ();
+		player_fist4 ();
 		break;
 
 		case 2:
-		player_blast3 ();
+		player_fist3 ();
 		break;
 
 		case 1:
-		player_blast2 ();
+		player_fist2 ();
 		break;
 
 		default:
-		player_blast1 ();
+		player_fist1 ();
 		break;
 	}
 };
 
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
+float() get_noammo = {return 0;};
+void(float a) save_noammo = {return 0;};
 
-void() W_WeaponGrenadeLaun = 
-{	
-	self.weaponuse = player_handgr;
-	W_WeaponFrame (14, 155, 294, 300, 295, 0, 0, 0, 0, 0, 0, 0);
-};
+weapon_info_frames wf_fist = {11, '75 120 0', '121 126 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_punch, W_WeaponFistNoise  };
+weapon_info_generic w_fist = { "progs/v_blast.md3", "", AmmoLessCheck};
+weapon_info_ammo a_fist = {SUB_Assign_NoAmmo, get_noammo ,save_noammo};
+
+/*
+============
+Hand Grenades
+============
+*/
 
 void() W_WeaponGrenadeLaunNoise = 
 {	
@@ -939,11 +965,10 @@ void() W_WeaponGrenadeLaunNoise =
 		sound(self, CHAN_RELOAD, "weapons/grenades/gren_use.wav", 1, ATTN_NORM);
 };
 
-void() player_handgr =[self.frame, player_handgr ]
+void() player_handgr = [self.frame, player_handgr]
 {	
-	self.attack_finished = time + 666;
 	self.weaponstate = WEAPON_USED;
-
+	self.attack_finished = TRUE;
 	if (self.weaponframe != 15 && self.weaponframe > 154)
 	{
 		sound(self, CHAN_WEAPON,"weapons/grenades/gren_throw_mix.wav", 1, ATTN_NORM);
@@ -954,7 +979,6 @@ void() player_handgr =[self.frame, player_handgr ]
 	if (self.weaponframe >= 154)
 	{	
 		player_run ();
-		self.attack_finished = 0; 
 		self.weaponframe = 155;
 		self.weaponstate = WEAPON_IDLE;
 		return;
@@ -970,7 +994,6 @@ void() player_handgr =[self.frame, player_handgr ]
 			W_FireGrenade2(0, 0, FALSE);
 			player_run ();    
 			self.weaponframe = 155;
-			self.attack_finished = 0; 
 			return;
 		}
 		
@@ -999,16 +1022,28 @@ void() player_handgr =[self.frame, player_handgr ]
       }
 
 	self.weaponframe++;
-	self.nextthink = time + 0.04;
+	self.nextthink = time + 0.03;
 
-	player_firegun ();
+	if (self.weaponframe > 126)
+		self.nextthink = time + 0.02;
 };
 
-void() W_WeaponShotgun = 
-{	
-	self.weaponuse = player_shotg;
-	W_WeaponFrame (14, 26, 85, 144, 139, 86, 100, 129, 132, 138, 16, 16);
-};
+float() get_rockets = {return self.ammo_rockets;};
+void(float ammotype) save_grenades = 
+{
+	self.ammo_rockets = ammotype;
+	self.currentammo = self.ammo_rockets;
+}
+
+weapon_info_frames wf_grenade = {14, '155 294 0', '295 300 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_handgr, W_WeaponGrenadeLaunNoise };
+weapon_info_generic w_grenade = { "progs/v_launch.md3", "progs/male/w_glauncher.mdl", GrenadeNoAmmo};
+weapon_info_ammo a_grenade = {SUB_Assign_Rockets, get_rockets, save_grenades };
+
+/*
+============
+Pistol
+============
+*/
 
 void() W_WeaponPistolNoise =
 {	
@@ -1017,13 +1052,18 @@ void() W_WeaponPistolNoise =
 	if (self.weaponframe == 0)
 		sound(self, CHAN_RELOAD, "weapons/pistol/pistol_use_01.wav", 1, ATTN_NORM);
 
-	if (self.weaponframe == 86)
+	if (self.weaponframe == 87)
+	{	
+		local vector offset = setvector (0, 0, self.view_ofs[1] + 4);
+		makevectors(self.v_angle);
+
+		_mag ("progs/shell6.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
 		sound(self, CHAN_RELOAD, "weapons/pistol/pistol_reload_01.wav", 1, ATTN_NORM);
+	}
 };
 
-void() player_shotg =[self.frame, player_shotg ]
+void() player_pistol =[self.frame, player_pistol ]
 {	
-	self.attack_finished = time + 20;
 	self.weaponstate = WEAPON_USED;
 
 	if (!self.button0 || self.currentammo < 1)
@@ -1036,7 +1076,7 @@ void() player_shotg =[self.frame, player_shotg ]
 		}
 		else
 		{	
-			self.attack_finished = 0; 
+			self.weaponstate = WEAPON_IDLE;
 			player_run ();
 			self.weaponframe = 26;
 			return;
@@ -1044,9 +1084,6 @@ void() player_shotg =[self.frame, player_shotg ]
 	}
 
 	if (self.weaponframe != 15 && self.weaponframe > 25)
-		self.weaponframe = 15;
-
-	if (self.weaponframe == 21 && self.button0)
 		self.weaponframe = 15;
 
 	if (self.weaponframe == 15)
@@ -1059,20 +1096,28 @@ void() player_shotg =[self.frame, player_shotg ]
       }
 
 	self.weaponframe++;
-	self.nextthink = time + 0.04;
-	player_firegun ();
+	self.nextthink = time + 0.02;
+
+	if (self.weaponframe < 18)
+		self.nextthink = time + 0.015;
 };
 
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
-
-void() W_WeaponSShotgun = 
-{	
-	self.weaponuse = player_shotg2;
-	W_WeaponFrame (14, 47, 118, 177, 172, 119, 126, 130, 150, 171, 1, 6);
+float() getshells = {return self.ammo_shells;};
+void(float a) save_pistolammo = 
+{
+	self.ammo_shells = a;
+	self.savedammo_shells2 = self.currentammo;
 };
 
+weapon_info_frames wf_pistol = {14, '26 85 0', '139 144 0', '86 138 100', '129 137 0', PSTL_AMMO_CAP, PSTL_AMMO_CAP, player_pistol,  W_WeaponPistolNoise };
+weapon_info_generic w_pistol = { "progs/v_shotg.md3", "progs/male/w_shotgun.mdl", PistolNoAmmo};
+weapon_info_ammo a_pistol = {SUB_Assign_Saved_Shells2, getshells, save_pistolammo};
+
+/*
+============
+Shotgun
+============
+*/
 void() W_WeaponShotgunNoise =
 {	
 
@@ -1081,7 +1126,7 @@ void() W_WeaponShotgunNoise =
 	if (self.weaponframe == 0)
 		sound(self, CHAN_RELOAD, "weapons/shotgun/shotgun_use_01.wav", 1, ATTN_NORM);
 
-	if (self.weaponframe == 9 || self.weaponframe == 165 || self.weaponframe == 33)
+	if (self.weaponframe == 9 || self.weaponframe == 165 || self.weaponframe == 29)
 		sound(self, CHAN_RELOAD, "weapons/shotgun/shotgun_cock_01.wav", 1, ATTN_NORM);
 
 	if (self.weaponframe == 135)
@@ -1105,18 +1150,39 @@ void() W_WeaponShotgunNoise =
 	}
 };
 
-void() player_shotg2 =[self.frame, player_shotg2 ]
+void() W_WeaponShotgun2Noise =
 {	
-	self.attack_finished = time + 20;
+
+	local float r = rint(random() * 2);
+
+	if (self.weaponframe == 0 || self.weaponframe == 178)
+		sound(self, CHAN_RELOAD, "weapons/ssg/click_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 140)
+		sound(self, CHAN_RELOAD, "weapons/ssg/clack_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 158 || self.weaponframe == 164)
+	{
+		if (r == 2)
+			sound(self, CHAN_RELOAD, "weapons/ssg/insert_01.wav", 1, ATTN_NORM);
+		else if (r == 1)
+			sound(self, CHAN_RELOAD, "weapons/ssg/insert_02.wav", 1, ATTN_NORM);
+		else
+			sound(self, CHAN_RELOAD, "weapons/ssg/insert_03.wav", 1, ATTN_NORM);
+	}
+};
+
+void() player_shotg = [self.frame, player_shotg]
+{
 	self.weaponstate = WEAPON_USED;
  
-	if (self.weaponframe != 15 && self.weaponframe > 46 )
-		self.weaponframe = 15;
+	if (self.weaponframe != 15 && self.weaponframe > 46)
+		self.weaponframe = 15;	 
 
-	if (self.weaponframe >= 46)
-	{
+	if (self.weaponframe >= 46 )
+	{	
 		player_run ();
-		self.attack_finished = 0; 
+		self.weaponstate = WEAPON_IDLE;
 		self.weaponframe = 47;
 		return;
 	}
@@ -1136,31 +1202,89 @@ void() player_shotg2 =[self.frame, player_shotg2 ]
 		offset = setvector (24, 4, self.view_ofs[1] + 16);
 		makevectors(self.v_angle);
 
-		_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000));
+		_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*25));
 	}
 
 	self.weaponframe++;
-	self.nextthink = time + 0.04;
-	player_firegun ();
-	self.weaponnoise ();
+
+	self.nextthink = time + 0.038;
+
+	 W_WeaponShotgunNoise ();
 };
 
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
 
-void() W_WeaponMachineGun = 
+void() player_doublebarrel = [self.frame, player_doublebarrel]
 {	
-	self.weaponuse = player_machn;
-	W_WeaponFrame (14, 19, 63, 129, 124, 64, 75, 107, 109, 123, 50, 50);
+	self.weaponstate = WEAPON_USED;
+	
+	if (self.weaponframe != 15 && self.weaponframe > 29)
+		self.weaponframe = 15;	 
+
+	if (self.weaponframe >= 29)
+	{	
+		player_run ();
+		self.weaponstate = WEAPON_IDLE;
+		self.weaponframe = 30;
+		return;
+	}
+
+	if (self.weaponframe == 15)
+	{
+		 self.solid = SOLID_BBOX;
+     	  	 W_FireDoubleBarrel();
+		self.savedammo_shellsDB = self.currentammo;
+		self.effects = self.effects | EF_MUZZLEFLASH;
+		 self.solid = SOLID_SLIDEBOX;
+      }
+
+/*	if (self.weaponframe == 33)
+	{	
+		local vector offset;
+		offset = setvector (24, 4, self.view_ofs[1] + 16);
+		makevectors(self.v_angle);
+
+		//_casing ("progs/shell2.mdl", ProjectAim (self.origin, offset, v_forward, v_right), aim(self, 10000),self.velocity + v_right*-75 + v_up*(25 + random()*25));
+	}*/
+
+	self.weaponframe++;
+
+	self.nextthink = time + 0.04;
+
+	// W_WeaponShotgunNoise ();
 };
+
+void(float a) save_sgammo = 
+{
+	self.ammo_shells = a;
+	self.savedammo_shells = self.currentammo;
+};
+
+void(float a) save_DBammo = 
+{
+	self.ammo_shells = a;
+	self.savedammo_shellsDB = self.currentammo;
+};
+
+weapon_info_frames wf_shotgun = {14, '47 118 0', '172 177 0', '119 171 139', '126 152 0', SG_AMMO_LOAD, SG_AMMO_CAP, player_shotg,  W_WeaponShotgunNoise};
+weapon_info_generic w_shotgun = {"progs/v_shotg2.md3", "progs/male/w_sshotgun.mdl", ShotgunNoAmmo};
+weapon_info_ammo a_shotgun = {SUB_Assign_Saved_Shells1, getshells, save_sgammo};
+
+weapon_info_frames wf_doublebarrel = {14, '30 130 0', '182 188 0', '131 181 166', '180 181 0', 2, 2, player_doublebarrel, W_WeaponShotgun2Noise};
+weapon_info_generic w_doublebarrel = { "progs/v_shotg3.md3", "progs/male/w_sshotgun.mdl", DoubleBarrelNoAmmo };
+weapon_info_ammo a_doublebarrel    = {SUB_Assign_Saved_ShellsDB, getshells, save_DBammo};
+
+/*
+============
+Machinegun
+============
+*/
 
 void() W_WeaponMachineGunNoise =
 {
 	if (self.weaponframe == 0)
 		sound(self, CHAN_RELOAD, "weapons/machinegun/mg_use_01.wav", 1, ATTN_NORM);
 
-	if (self.weaponframe == 64)
+	if (self.weaponframe == 66)
 		sound(self, CHAN_RELOAD, "weapons/machinegun/mg_reload_01.wav", 1, ATTN_NORM);
 
 	if (self.weaponframe == 85)
@@ -1172,9 +1296,8 @@ void() W_WeaponMachineGunNoise =
 	}
 };
 
-void() player_machn = [self.frame, player_machn ]
+void() player_machn = [self.frame, player_machn]
 {	
-	self.attack_finished = time + 20; 
 	self.weaponstate = WEAPON_USED;
 	
 	if (!self.button0 || self.currentammo < 1)
@@ -1187,7 +1310,7 @@ void() player_machn = [self.frame, player_machn ]
 		}
 		else
 		{	
-			self.attack_finished = 0; 
+			self.weaponstate = WEAPON_IDLE;
 			player_run ();
 			self.weaponframe = 19;
 			return;
@@ -1196,94 +1319,385 @@ void() player_machn = [self.frame, player_machn ]
 
 	if (self.weaponframe != 15 && self.weaponframe > 18)
 		self.weaponframe = 15;
-
-	if (self.weaponframe > 17 && self.button0)
+	
+	if (self.weaponframe > 18 && self.button0)
 		self.weaponframe = 15;
 
 	if (self.weaponframe == 15)
 	{
 		self.solid = SOLID_BBOX;	
 		W_FireMachineGun ();
+		//W_FireMachineGun ();
 		self.savedammo_nails = self.currentammo;
 		self.effects = self.effects | EF_MUZZLEFLASH;
 		self.solid = SOLID_SLIDEBOX;
       }
 		
-	self.weaponframe++;
-
+	self.weaponframe++;	
 	self.nextthink = time + 0.04;
 	if (self.button0)
-		self.nextthink = time + 0.035;	
-	player_firegunloop ();
+		self.nextthink = time + 0.02;	
 };
 
-void() W_WeaponChainGun = 
-{	
-	self.weaponuse = player_chain;
-	W_WeaponFrame (14, 45, 94, 150, 145, 95, 96, 102, 143, 144, 60, 60);
+float() getnails = {return self.ammo_nails;};
+
+void(float a) save_mgammo = 
+{
+	self.ammo_nails = a;
+	self.savedammo_nails = self.currentammo;
 };
+
+void(float a) save_cgammo = 
+{
+	self.ammo_nails = a;
+	self.savedammo_nails2 = self.currentammo;
+};
+
+weapon_info_frames wf_machinegun = {14, '19 63 0', '124 129 0', '64 123 75', '64 123 0', MG_AMMO_CAP, MG_AMMO_CAP, player_machn,  W_WeaponMachineGunNoise};
+weapon_info_generic w_machinegun = { "progs/v_machn.md3", "progs/male/w_machinegun.mdl", MachineGunNoAmmo};
+weapon_info_ammo a_machinegun = {SUB_Assign_Saved_Nails1, getnails, save_mgammo};
+
+/*
+============
+Chaingun
+============
+*/
 
 void() W_WeaponChainGunNoise =
 {
 	if (self.weaponframe == 0)
 		sound(self, CHAN_RELOAD, "weapons/chaingun/cg_use_01.wav", 1, ATTN_NORM);
 
-	if (self.weaponframe == 95)
+	if (self.weaponframe == 103)
 		sound(self, CHAN_RELOAD, "weapons/chaingun/cg_reload_twist_01.wav", 1, ATTN_NORM);
 };
 
-void() player_chain = [self.frame, player_chain ]
+void() player_chain = [self.frame, player_chain]
 {	
-	self.attack_finished = time + 20; 
 	self.weaponstate = WEAPON_USED;
 	
 	if (!self.button0 || (self.currentammo < 1))
 	{	
-		if (self.weaponframe < 25 || (self.weaponframe >= 25 && self.weaponframe <= 32))
+		if (self.weaponframe < 27)
 		{
 			sound(self, CHAN_RELOAD, "weapons/chaingun/cg_winddown_mix_01.wav", 1, ATTN_NORM);
-			self.weaponframe = 33;
+			self.weaponframe = 39;
 		}
 
-		if ((self.weaponframe <= 44))
+		if (self.weaponframe >= 27 && self.weaponframe <= 36)
+		{
+			sound(self, CHAN_RELOAD, "weapons/chaingun/cg_winddown_mix_01.wav", 1, ATTN_NORM);
+			self.weaponframe = 36;
+		}		
+
+		if ((self.weaponframe <= 50))
 		{	
 			self.weaponframe ++; 
 			self.nextthink = time + 0.04;
-			player_firegunloop ();
 			return;
 		}
 		else
 		{	
 			sound(self, CHAN_RELOAD, "misc/null.wav", 1, ATTN_NORM);
-			self.attack_finished = 0; 
+			self.weaponstate = WEAPON_IDLE; 
 			player_run ();
-			self.weaponframe = 45;
+			self.weaponframe = 52;
 			return;
 		}
 	}
 	
-	W_FireChainGunSpinning ();
+	if (self.button0)
+		W_FireChainGunSpinning ();
+
+	self.savedammo_nails2 = self.currentammo;
 	
 	if (self.weaponframe != 15 && self.weaponframe > 44)
-	{
-		sound(self, CHAN_RELOAD, "weapons/chaingun/cg_windup_mix_01.wav", 1, ATTN_NORM);
 		self.weaponframe = 15;
-	}
 
-	if (self.weaponframe > 31 && self.button0) // full-auto
-	{
+	if (self.weaponframe == 15)
+		sound(self, CHAN_RELOAD, "weapons/chaingun/cg_windup_mix_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe > 35 && self.button0) // full-auto
+	{	
 		sound(self, CHAN_RELOAD, "weapons/chaingun/cg_motor_loop_01.wav", 1, ATTN_NORM);
-		self.weaponframe = 25;
+		self.weaponframe = 30;
 	}
 
 	self.weaponframe++;
-	player_firegunloop ();
+
+	self.nextthink = time + 0.042;
+	if (self.weaponframe > 29 && self.button0)
+		self.nextthink = time + 0.03;	
+};
+
+weapon_info_frames wf_chaingun = {14, '52 101 0', '152 157 0', '102 151 110', '104 151 0', CG_AMMO_CAP, CG_AMMO_CAP, player_chain, W_WeaponChainGunNoise};
+weapon_info_generic w_chaingun = { "progs/v_chain.md3", "progs/male/w_chaingun.mdl", MachineGunNoAmmo};
+weapon_info_ammo a_chaingun = {SUB_Assign_Saved_Nails2, getnails, save_cgammo};
+
+/*
+============
+PLASMAgun
+============
+*/
+
+void() W_WeaponPlasmaNoise =
+{
+	if (self.weaponframe == 149)
+		sound(self, CHAN_RELOAD, "weapons/plasmagun/plasma_reload_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 0)
+		sound(self, CHAN_RELOAD, "weapons/plasmagun/plasma_use_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 166)
+	{
+		local vector offset = setvector (0, 0, self.view_ofs[1] + 4);
+		makevectors(self.v_angle);
+
+		_mag ("progs/shell3.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
+	}
+};
+
+
+void() player_plas = [self.frame, player_plas ]
+{	
+	self.weaponstate = WEAPON_USED;
+	
+	if (!self.button0 || self.currentammo < 1)
+	{	
+		if ((self.weaponframe <= 26))
+		{	
+			self.weaponframe ++; 
+			self.nextthink = time + 0.04;
+			return;
+		}
+		else
+		{	
+			self.weaponstate = WEAPON_IDLE;
+			self.weaponframe = 27;
+			player_run();
+			return;
+		}
+	}
+
+	if (self.weaponframe != 12 && self.weaponframe > 15)
+		self.weaponframe = 12;
+
+	if (self.weaponframe == 15 && self.button0)
+		self.weaponframe = 12;
+
+	if (self.weaponframe == 12)
+	{
+		//self.solid = SOLID_BBOX;	
+		W_FireHyper ();
+		self.savedammo_cells = self.currentammo;
+		self.effects = self.effects | EF_MUZZLEFLASH;
+		//self.solid = SOLID_SLIDEBOX;
+      }
+		
+	self.weaponframe++;
+	self.nextthink = time + 0.0325;
+};
+
+float() getcells = {return self.ammo_cells;};
+
+void(float a) save_pgammo = 
+{
+	self.ammo_cells = a;
+	self.savedammo_cells = self.currentammo;
+};
+
+void(float a) save_bfgammo = 
+{
+	self.ammo_cells = a;
+	self.savedammo_cells2 = self.currentammo;
+};
+
+weapon_info_frames wf_plasmagun = {11, '27 146 0', '207 213 0', '147 206 195', '160 206 0', PLSG_AMMO_CAP, PLSG_AMMO_CAP, player_plas, W_WeaponPlasmaNoise};
+weapon_info_generic w_plasmagun = { "progs/v_hyperb.md3", "progs/male/w_hyperblaster.mdl", PlasmaNoAmmo};
+weapon_info_ammo a_plasmagun = {SUB_Assign_Saved_Cells1, getcells, save_pgammo};
+
+/*
+============
+Rocket Laucnher
+============
+*/
+void() W_WeaponRocketLaunNoise =
+{	
+	//local float r = rint(random() * 2);
+
+	if (self.weaponframe == 0)
+		sound(self, CHAN_RELOAD, "weapons/rocket/raise.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 113)
+		sound(self, CHAN_RELOAD, "weapons/rocket/reload.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 134)
+	{
+		local vector offset = setvector (0, 8, self.view_ofs[1] + 4);
+		makevectors(self.v_angle);
+
+		_mag ("progs/shell5.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
+	}
+};
+
+void() player_rocket = [self.frame, player_rocket]
+{	
+	self.weaponstate = WEAPON_USED;
+
+	if (self.weaponframe != 15 && self.weaponframe > 27)	
+		self.weaponframe = 15;
+	
+	if (self.weaponframe >= 27)
+	{
+		self.weaponstate = WEAPON_IDLE;
+		self.weaponframe = 28;
+		player_run();
+		return;
+	}
+	
+	if (self.weaponframe == 15)
+	{
+		self.effects = self.effects | EF_MUZZLEFLASH;
+		W_FireRocket();
+		self.savedammo_rockets = self.currentammo;
+	}	
+
+	self.weaponframe++;
 	self.nextthink = time + 0.04;
 };
 
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
+void(float a) save_rlammo = 
+{
+	self.ammo_rockets = a;
+	self.savedammo_rockets = self.currentammo;
+};
+
+weapon_info_frames wf_rocketlauncher = {14, '28 110 0', '161 168 0', '110 160 120', '155 160 0', RL_AMMO_CAP, RL_AMMO_CAP, player_rocket, W_WeaponRocketLaunNoise};
+weapon_info_generic w_rocketlauncher = { "progs/v_rocket.md3", "progs/male/w_rlauncher.mdl", RocketLauncherNoAmmo};
+weapon_info_ammo a_rocketlauncher = {SUB_Assign_Saved_Rockets, get_rockets, save_rlammo};
+
+/*
+============
+big fucking gun
+============
+*/
+
+void(float level) W_FireBFG =
+{
+	local vector dir, offset, start; 
+	local float dmg_rad, dmg, dmg_lsr;
+
+	// bprint (ftos(level / 3), "\n");
+	
+	// self.currentammo  = self.ammo_cells = self.ammo_cells - 50;
+
+	offset = setvector(32, 8, self.view_ofs[1] + 14);
+
+	makevectors(self.v_angle);
+	start = ProjectAim (self.origin, offset, v_forward, v_right);
+	dir = aim(self,10000);
+
+	self.punchangle = setvector (-12, crandom() * 0.7, crandom() * 0.7);
+	
+	dmg = 400 * (level / 3);
+	dmg_lsr = 15; // unaffected
+	dmg_rad = 400 * (level / 3);	
+
+	launch_thunderball(dir,start,dmg,dmg_lsr,dmg_rad);
+      SuperDamageSound();
+};
+
+void() W_WeaponBFGNoise =
+{	
+	//local float r = rint(random() * 2);
+
+	if (self.weaponframe == 0)
+		sound(self, CHAN_RELOAD, "weapons/bfg/bfg_raise.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 244)
+		sound(self, CHAN_RELOAD, "weapons/bfg/bfg_reload.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 265)
+	{
+		local vector offset = setvector (0, -16, self.view_ofs[1] + 4);
+		makevectors(self.v_angle);
+
+		_mag ("progs/shell3.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
+	}
+};
+
+void() player_bfg = [self.frame, player_bfg]
+{	
+	local float level = 30;
+
+	self.weaponstate = WEAPON_USED;
+
+	if (self.weaponframe != 15 && self.weaponframe > 181)
+	{
+		sound(self, CHAN_WEAPON, "weapons/bfg/bfg_firebegin.wav", 1, ATTN_NORM);	
+		self.weaponframe = 15;
+	}
+
+	if (self.weaponframe > 144 && self.button0 && self.weaponframe < 153)
+	{
+		W_FireGrenade2(0, 0, TRUE);
+		self.weaponframe = 181;
+		return;
+	}
+
+	if (self.weaponframe >= 181)
+	{
+		self.weaponstate = WEAPON_IDLE;
+		self.weaponframe = 182;
+		player_run ();
+		return;
+	}
+
+	if (self.weaponframe <= 76 && self.weaponframe >= 56) 
+		level = 60;
+
+	else if (self.weaponframe <= 112 && self.weaponframe > 76)
+		level = 90;
+	
+	else if (self.weaponframe <= 152 && self.weaponframe > 112)
+		level = 120;
+	
+	if (self.savedammo_cells2 >= level)
+		self.dmg_lsr = level;
+
+	if (!self.button0 && self.weaponframe < 153)
+		self.weaponframe = 153;
+
+	if (self.weaponframe < 153)
+		self.punchangle = setvector (crandom() * 0.2, crandom() * 0.2, crandom() * 0.2);	
+
+	if (self.weaponframe == 153)
+	{
+		self.effects = self.effects | EF_MUZZLEFLASH;
+	//bprint (ftos(level * 0.1), "\n");
+		W_FireBFG(level * 0.1);
+		sound(self, CHAN_WEAPON, "weapons/bfg/bfg_fire.wav", 1, ATTN_NORM);
+
+		self.savedammo_cells2 = self.savedammo_cells2 - self.dmg_lsr;
+		self.currentammo = self.savedammo_cells2;
+	}
+	
+	self.weaponframe++;
+	if (self.weaponframe < 153)
+		self.nextthink = time + 0.018;
+	else
+		self.nextthink = time + 0.04;
+};
+
+weapon_info_frames wf_bfg = {14, '182 241 0', '302 308 0', '242 301 280', '280 301 0', BFG_AMMO_CAP, BFG_AMMO_CAP, player_bfg, W_WeaponBFGNoise};
+weapon_info_generic w_bfg = { "progs/v_bfg.md3", "progs/male/w_bfg.mdl", BFGNoAmmo};
+weapon_info_ammo a_bfg = {SUB_Assign_Saved_Cells2, getcells, save_bfgammo};
+
+/*
+============
+Chainsaw
+============
+*/
 
 void() W_WeaponChainsawHitMeat = 
 {
@@ -1335,8 +1749,8 @@ void() W_WeaponChainsawHitWall =
 
 void() W_WeaponChainsaw = 
 {	
-	self.weaponuse = player_chainsaw;
-	W_WeaponFrame (30, 68, 147, 153, 148, 0, 0, 0, 0, 0, 0, 0);
+	//self.weaponuse = player_chainsaw;
+	//W_WeaponFrame (30, 68, 147, 153, 148, NO_AMMO, NO_AMMO, NO_AMMO, NO_AMMO, NO_AMMO, NO_AMMO, NO_AMMO);
 
 	if (self.dspeed < time)
 		return;
@@ -1361,9 +1775,8 @@ void() W_WeaponChainsawNoise =
 		sound(self, CHAN_RELOAD, "weapons/chainsaw/put_away.wav", 1, ATTN_NORM);
 };
 
-void() player_chainsaw = [self.frame, player_chainsaw ]
+void() player_chainsaw = [self.frame, player_chainsaw]
 {	
-	self.attack_finished = time + 20; 
 	self.weaponstate = WEAPON_USED;
 	
 	if (self.weaponframe == 46)
@@ -1372,22 +1785,23 @@ void() player_chainsaw = [self.frame, player_chainsaw ]
 	if (!self.button0)
 	{	
 		if (self.weaponframe != 45 && self.weaponframe < 45)
+		{
 			self.weaponframe = 45;
 			// bprint ("buh \n");
 			// sound(self, CHAN_WEAPON, "weapons/chainsaw/stop_attack.wav", 1, ATTN_NORM);
+		}
 
 		if ((self.weaponframe <= 67))
 		{	
 			self.weaponframe ++; 
 			self.nextthink = time + 0.04;
-			player_firegunloop ();
 			return;
 		}
 		else
 		{	
-			self.attack_finished = 0; 
-			player_run ();
+			self.weaponstate = WEAPON_IDLE;
 			self.weaponframe = 68;
+			player_run();
 			return;
 		}
 	}
@@ -1400,7 +1814,7 @@ void() player_chainsaw = [self.frame, player_chainsaw ]
 
 	if (self.weaponframe > 45 && self.button0 && self.weaponframe < 47) // full-auto
 		self.weaponframe = 35;
-	
+
 	if (self.weaponframe == 35)
 		sound(self, CHAN_WEAPON, "weapons/chainsaw/attack.wav", 1, ATTN_NORM);
 
@@ -1408,266 +1822,394 @@ void() player_chainsaw = [self.frame, player_chainsaw ]
 	{
 		self.solid = SOLID_BBOX;
 		W_FireAxe (W_WeaponChainsawHitMeat, W_WeaponChainsawHitWall);
+	//	W_FireAxe (W_WeaponChainsawHitMeat, W_WeaponChainsawHitWall);
 		self.solid = SOLID_SLIDEBOX;
 	}
 
 	self.weaponframe++;
-	player_firegunloop ();
 	self.nextthink = time + 0.04;
 };
 
-void() W_WeaponHyperBlas = 
+weapon_info_frames wf_chainsaw = {30, '68 147 0', '148 153 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_chainsaw, W_WeaponChainsawNoise};
+weapon_info_generic w_chainsaw = { "progs/v_rail.md3", "progs/male/w_railgun.mdl", AmmoLessCheck};
+
+//=============================================
+
+/*
+============
+Grabber
+============
+*/
+.entity grabbed_proj;
+
+void() W_WeaponGrabberNoise = {};
+
+void(float vel) grabberfire =
 {	
-	self.weaponuse = player_hyperb;
-	W_WeaponFrame (11, 27, 146, 213, 207, 147, 160, 190, 195, 206, 50, 50);
-};
+	local vector dir = aim(self,1000);
 
-
-void() W_WeaponHyperBlasNoise =
-{
-	if (self.weaponframe == 147)
-		sound(self, CHAN_RELOAD, "weapons/plasmagun/plasma_reload_01.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 0)
-		sound(self, CHAN_RELOAD, "weapons/plasmagun/plasma_use_01.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 166)
-	{
-		local vector offset = setvector (0, 0, self.view_ofs[1] + 4);
-		makevectors(self.v_angle);
-
-		_mag ("progs/shell3.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
-	}
-};
-
-
-void() player_hyperb = [self.frame, player_hyperb ]
-{	
-	self.attack_finished = time + 20; 
-	self.weaponstate = WEAPON_USED;
-	
-	if (!self.button0 || self.currentammo < 1)
+	//	self.grabbed_proj.owner = __NULL__;
+	if (self.grabbed_proj.flags & FL_ITEM)
 	{	
-		if ((self.weaponframe <= 26))
+		self.grabbed_proj.velocity = dir * -400;
+		self.grabbed_proj.movetype = MOVETYPE_TOSS;
+		self.grabbed_proj.touch = self.grabbed_proj.use;
+
+	//	self.grabbed_proj.think = SUB_Remove;
+		self.grabbed_proj.nextthink = -1;
+		self.grabbed_proj = __NULL__;
+		return;
+	}
+
+	if (vel != 2000)
+	{	
+		self.grabbed_proj.movetype = MOVETYPE_TOSS;
+	}
+
+	self.grabbed_proj.flags &= ~FL_ONGROUND;
+	self.grabbed_proj.velocity = dir * vel;
+	self.grabbed_proj.angles = vectoangles(dir);
+
+	self.grabbed_proj.think = SUB_Remove;
+	self.grabbed_proj.nextthink = time + 6;
+	self.grabbed_proj.dmg *= 3;
+
+	if (self.grabbed_proj.classname == "grenade")
+	{
+		self.grabbed_proj.use = m_GrenadeExplode;
+	//	self.grabbed_proj.nextthink = time + (self.grabbed_proj.ltime / 2);
+	}
+
+	if (self.grabbed_proj.classname == "explo_box")
+	{
+		self.grabbed_proj.use = barrel_explode;
+		self.grabbed_proj.solid = SOLID_BBOX;
+		self.grabbed_proj.dmg /= 3;
+	//	self.grabbed_proj.nextthink = time + (self.grabbed_proj.ltime / 2);
+	}
+
+	if (self.grabbed_proj.classname == "homing_missile")
+		self.dmg *= 8;
+	
+	self.grabbed_proj.touch = self.grabbed_proj.use;
+	
+	self.grabbed_proj.aiflags &= ~IS_PROJECTILE; // so that it cant be picked up
+	self.grabbed_proj = __NULL__;
+}
+
+void() NeutralizeProj =
+{	
+	if (self.owner.health <= 0)
+	{
+		remove(self);
+		return;
+	}
+//	AngleVectors (self.owner.v_angle, f, r, u);
+
+//	traceline (self, self.origin)
+	makevectors (self.owner.v_angle);
+	self.origin = self.owner.origin + self.owner.view_ofs + aim(self.owner,1000) * 64 + v_right * 12;
+
+	self.nextthink = time;
+	self.think = NeutralizeProj;
+}
+
+void() NeutralizeMonster =
+{	
+	if (self.owner.health <= 0)
+	{
+		remove(self);
+		return;
+	}
+
+//	AngleVectors (self.owner.v_angle, f, r, u);
+
+//	traceline (self, self.origin)
+	makevectors (self.owner.v_angle);
+	self.origin = self.owner.origin + self.owner.view_ofs + aim(self.owner,1000) * 64;
+
+	self.owner.grabbed_proj = __NULL__;
+
+	self.velocity = '0 0 200';
+	self.movetype = MOVETYPE_TOSS;
+
+	Killed (self, self);
+
+	//self.nextthink = -1;
+	//self.think = NeutralizeMonster;
+}
+
+void() NeutralizeItem =
+{	
+	if (self.owner.health <= 0)
+	{
+		remove(self);
+		return;
+	}
+	
+//	AngleVectors (self.owner.v_angle, f, r, u);
+
+//	traceline (self, self.origin)
+//	vector o = self.mins + self.maxs;
+//	o *= 0.5;
+	makevectors (self.owner.v_angle);
+	self.origin = self.owner.origin + self.owner.view_ofs + aim(self.owner,1000) * 64;
+
+	self.nextthink = time;
+	self.think = NeutralizeItem;
+}
+
+float(entity targ) infront_grabber =
+{
+	local vector	vec;
+	local float		dot;
+	
+	makevectors (self.v_angle);
+	vec = normalize (targ.origin - (self.origin + self.view_ofs));
+	dot = vec * aim(self,100000);
+	
+//	bprint(ftos(dot), "\n");
+	if ( dot > 0.98)
+	{
+		return TRUE;
+	}
+	return FALSE;
+};
+
+float() grabber_grab_check = 
+{	
+	entity ent, best;
+	vector src = self.origin + self.view_ofs;
+	vector end = src + (350 * aim(self,10000));
+	traceline (self.origin + self.view_ofs, end, 2, self );
+
+	if (trace_ent)
+	{	
+		if (trace_ent.classname == "explo_box")
+			return TRUE;
+		
+		if (trace_ent.flags & FL_MONSTER && trace_ent.classname == "monster_grabbable")
+			return TRUE;
+	}
+	
+	for (ent = findradius(self.origin, 350); ent; ent = ent.chain)
+	{	
+		if (best)
+			return TRUE;
+
+		if ((ent.flags & FL_MONSTER))
+			continue;
+
+		if ((ent.flags & FL_CLIENT))
+			continue;
+
+		if (ent == world)
+			break;
+
+		if (!CanDamage(ent, self))
+			continue;
+
+		if ((ent.flags & FL_ITEM)) // special
+		{	
+			if (!infront_grabber(ent))
+				continue;
+
+			if (!CanDamage(ent, self))
+				continue;
+
+			best = ent;
+		}
+
+		if (!(ent.aiflags & IS_PROJECTILE))
+			continue;
+
+		if (!infront_grabber(ent))
+			continue;
+
+		best = ent;
+	//	self.grabbed = TRUE;
+	}
+	return FALSE;
+}
+
+float() grabber_grab = 
+{
+	//local vector org;
+	local entity ent, best;
+
+	vector src = self.origin + self.view_ofs;
+	vector end = src + (350 * aim(self,10000));
+	traceline (self.origin + self.view_ofs, end, 2, self );
+	if (trace_ent)
+	{	
+		if (trace_ent.classname == "explo_box")
+		{	
+			best = trace_ent;
+			self.grabbed_proj = best;
+			best.owner = self;
+			best.nextthink = time;
+
+			best.solid = SOLID_NOT;
+			best.touch = SUB_Null;
+			best.movetype = MOVETYPE_FLY;
+
+			best.flags &= ~FL_ONGROUND;
+			best.think = NeutralizeProj;
+			
+			return TRUE;
+		}
+		if (trace_ent.flags & FL_MONSTER && trace_ent.classname == "monster_grabbable")
+		{	
+			best = trace_ent;
+			self.grabbed_proj = best;
+			best.owner = self;
+			best.nextthink = time;
+
+			best.use = best.touch;
+			best.touch = SUB_Null;
+			best.movetype = MOVETYPE_FLY;
+
+			best.flags &= ~FL_ONGROUND;
+			best.think = NeutralizeMonster;
+			
+			return TRUE;
+		}
+	}
+
+	for (ent = findradius(self.origin, 350); ent; ent = ent.chain)
+	{	
+		if (best)
+			return TRUE;
+
+		if ((ent.flags & FL_MONSTER))
+			continue;
+
+		if ((ent.flags & FL_CLIENT))
+			continue;
+
+		if (ent == world)
+			break;
+
+		if ((ent.flags & FL_ITEM)) // special
+		{	
+			if (!infront_grabber(ent))
+				continue;
+
+			best = ent;
+
+			self.grabbed_proj = best;
+			best.owner = self;
+			best.nextthink = time;
+
+			best.use = best.touch;
+			best.touch = SUB_Null;
+
+			best.movetype = MOVETYPE_FLY;
+			best.think = NeutralizeItem;
+			best.flags &= ~FL_ONGROUND;
+		}
+
+		if (!(ent.aiflags & IS_PROJECTILE))
+			continue;
+
+		if (!infront_grabber(ent))
+			continue;
+
+		best = ent;
+
+		self.grabbed_proj = best;
+		best.owner = self;
+		best.nextthink = time;
+
+		best.use = best.touch;
+		best.touch = SUB_Null;
+
+		best.flags &= ~FL_ONGROUND;
+		best.think = NeutralizeProj;
+	//	self.grabbed = TRUE;
+	}
+	return FALSE;
+}
+
+.float grabbed;
+void() player_grab = [self.frame, player_grab]
+{	
+	self.weaponstate = WEAPON_USED;
+//	bprint (ftos(self.weaponframe),"\n");
+
+	if (self.weaponframe != 13 && self.weaponframe > 131)
+	{	
+		if (!grabber_grab())
+		{	
+			//bprint("eeeek", "\n");
+			self.weaponframe = 118;
+			//self.grabbed = FALSE;
+		}
+		else
+		{
+			//bprint("true", "\n");
+	//	self.grabbed = FALSE;
+			self.weaponframe = 13;
+		}
+	}
+	
+	if (self.weaponframe >= 131 || ((self.weaponframe >= 117) && self.grabbed))
+	{
+		self.grabbed = FALSE;
+		self.weaponstate = WEAPON_IDLE;
+		self.weaponframe = 132;
+		player_run();
+		return;
+	}
+	
+	if (!self.button0)
+	{	
+		if (self.grabbed_proj)
+		{	
+			self.grabbed = TRUE;
+			if (self.weaponframe != 96 && self.weaponframe < 96)
+			{	
+				//bprint ("fire", "\n");
+				self.weaponframe = 96;
+				grabberfire (2000);
+			}
+		}
+		else 
+		{
+			if (self.weaponframe != 118 && self.weaponframe < 118 && !self.grabbed)
+				self.weaponframe = 118;
+		//	self.grabbed = FALSE;
+		}
+
+		if ((self.weaponframe <= 117))
 		{	
 			self.weaponframe ++; 
 			self.nextthink = time + 0.04;
 			return;
 		}
-		else
+
+		if ((self.weaponframe > 117) && (self.weaponframe <= 126))
 		{	
-			self.attack_finished = 0; 
-			player_run ();
-			self.weaponframe = 27;
+			self.weaponframe ++; 
+			self.nextthink = time + 0.03;
 			return;
 		}
 	}
 
-	if (self.weaponframe != 12 && self.weaponframe > 26)
-		self.weaponframe = 12;
-
-	if (self.weaponframe == 15 && self.button0)
-		self.weaponframe = 12;
-
-	if (self.weaponframe == 12)
+	if (self.weaponframe > 58 && self.button0 && self.weaponframe < 96) // can't keep it holding longer
 	{
-		//self.solid = SOLID_BBOX;	
-		W_FireHyper ();
-		self.savedammo_cells = self.currentammo;
-		self.effects = self.effects | EF_MUZZLEFLASH;
-		//self.solid = SOLID_SLIDEBOX;
-      }
-		
+		//bprint ("fire", "\n");
+		self.weaponframe = 32;
+	//	grabberfire (200);
+	//	self.nextthink = time + 1.2;
+	}
+
+	if (self.weaponframe > 20 && !self.grabbed_proj && self.weaponframe < 117) // full-auto
+		self.weaponframe = 118;
+
 	self.weaponframe++;
 	self.nextthink = time + 0.04;
-	player_firegunloop ();
 };
 
-
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
-
-void() W_WeaponRocketLaun = 
-{	
-	self.weaponuse = player_rocket;
-	W_WeaponFrame (14, 28, 110, 168, 161, 111, 120, 150, 155, 160, 5, 5);
-};
-
-void() W_WeaponRocketLaunNoise =
-{	
-	//local float r = rint(random() * 2);
-
-	if (self.weaponframe == 0)
-		sound(self, CHAN_RELOAD, "weapons/rocket/raise.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 111)
-		sound(self, CHAN_RELOAD, "weapons/rocket/reload.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 134)
-	{
-		local vector offset = setvector (0, 8, self.view_ofs[1] + 4);
-		makevectors(self.v_angle);
-
-		_mag ("progs/shell5.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
-	}
-};
-
-void() player_rocket =[self.frame, player_rocket ]
-{	
-	self.attack_finished = time + 20;
-	self.weaponstate = WEAPON_USED;
-
-	if (self.weaponframe != 15 && self.weaponframe > 27)
-		self.weaponframe = 15;
-
-	if (self.weaponframe >= 27)
-	{
-		player_run ();
-		self.attack_finished = time + 0.6; 
-		self.weaponframe = 28;
-		
-		return;
-	}
-
-	//if (self.weaponframe == 6)
-	//	sound(self, CHAN_RELOAD, "weapons/rocklr1b.wav", 1, ATTN_NORM);
-	
-	if (self.weaponframe == 15)
-	{
-		self.effects = self.effects | EF_MUZZLEFLASH;
-		W_FireRocket();
-		self.savedammo_rockets = self.currentammo;
-	}	
-
-	self.weaponframe++;
-	
-	player_firegun ();
-	self.nextthink = time + 0.04;
-};
-
-/*void(float start_fire, float idle_start, float idle_end, float change_end, 
-	optional float change_start, optional float reload_start, optional float reload_loop_start, reload_insert
-	 optional float reload_end_start, optional float reload_end_end, optional float ammo_load, optional float max_ammo_load, optional float ammo_type) */
-
-void() W_WeaponBFG = 
-{	
-	self.weaponuse = player_bfg;
-	W_WeaponFrame (14, 182, 241, 308, 302, 242, 260, 280, 290, 301, 40, 40);
-};
-
-void(float level) W_FireBFG =
-{
-	local vector dir, offset, start; 
-	local float dmg_rad, dmg, dmg_lsr;
-
-	// self.currentammo  = self.ammo_cells = self.ammo_cells - 50;
-
-	offset = setvector(24, 8, self.view_ofs[1] + 14);
-
-	makevectors(self.v_angle);
-	start = ProjectAim (self.origin, offset, v_forward, v_right);
-	dir = aim(self,10000);
-
-	self.punchangle_x = -8;
-	
-	dmg = 400 * level;
-	dmg_lsr = 6 * level;
-	dmg_rad = 400 * level;	
-
-	launch_thunderball(dir,start,dmg,dmg_lsr,dmg_rad);
-      SuperDamageSound();
-};
-
-void() W_WeaponBFGNoise =
-{	
-	//local float r = rint(random() * 2);
-
-	if (self.weaponframe == 0)
-		sound(self, CHAN_RELOAD, "weapons/bfg/bfg_raise.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 242)
-		sound(self, CHAN_RELOAD, "weapons/bfg/bfg_reload.wav", 1, ATTN_NORM);
-
-	if (self.weaponframe == 265)
-	{
-		local vector offset = setvector (0, -16, self.view_ofs[1] + 4);
-		makevectors(self.v_angle);
-
-		_mag ("progs/shell3.mdl", ProjectAim (self.origin, offset, v_forward, v_right));
-	}
-};
-
-void() player_bfg = [self.frame, player_bfg ]
-{	
-	self.attack_finished = time + 999;
-	local float level = 10;
-
-	self.weaponstate = WEAPON_USED;
-
-	if (self.weaponframe != 15 && self.weaponframe > 181)
-	{
-		sound(self, CHAN_WEAPON, "weapons/bfg/bfg_firebegin.wav", 1, ATTN_NORM);	
-		self.weaponframe = 15;
-	}
-
-	if (self.weaponframe > 144 && self.button0 && self.weaponframe < 153)
-	{
-		// player_run ();
-		W_FireGrenade2(0, 0, TRUE);
-		self.weaponframe = 181;
-		self.nextthink = time + 4; // don't overcharge it again dumbass
-		return;
-	}
-
-	if (self.weaponframe >= 181)
-	{
-		player_run ();
-		self.attack_finished = 0; 
-		self.weaponframe = 182;
-		
-		return;
-	}
-
-	if (self.weaponframe <= 76 && self.weaponframe >= 56) 
-		level = 20;
-
-	else if (self.weaponframe <= 96 && self.weaponframe > 76)
-		level = 30;
-	
-	else if (self.weaponframe <= 152 && self.weaponframe > 96)
-		level = 40;
-	
-	if (self.savedammo_cells2 >= level)
-		self.dmg_lsr = level;
-
-	if (!self.button0 && self.weaponframe < 153)
-		self.weaponframe = 153;
-
-	if (self.weaponframe == 153)
-	{
-		self.effects = self.effects | EF_MUZZLEFLASH;
-		//bprint (ftos(level * 0.1), "\n");
-		W_FireBFG(level * 0.1);
-		sound(self, CHAN_WEAPON, "weapons/bfg/bfg_fire.wav", 1, ATTN_NORM);
-
-		self.savedammo_cells2 = self.savedammo_cells2 - self.dmg_lsr;
-		self.currentammo = self.savedammo_cells2;
-	}
-	
-	self.weaponframe++;
-	
-
-	if (self.weaponframe < 153)
-	{
-		player_firegunloop ();
-		self.nextthink = time + 0.02;
-	}
-	else
-	{
-		player_firegun ();
-		self.nextthink = time + 0.04;
-	}
-};
-
-//=============================================
+weapon_info_frames wf_grabber = {12, '132 192 0', '193 198 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_grab, W_WeaponGrabberNoise};
+weapon_info_generic w_grabber = { "progs/v_grav.md3", "progs/male/w_railgun.mdl", AmmoLessCheck};

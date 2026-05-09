@@ -190,21 +190,32 @@ local entity	fireball;
 	fireball.velocity_y = (random() * 100) - 50;
 	fireball.velocity_z = self.speed + (random() * 200);
 	fireball.classname = "fireball";
-	setmodel (fireball, "progs/lavaball.mdl");
+	setmodel (fireball, "progs/muzzleflash.spr");
+
 	setsize (fireball, '0 0 0', '0 0 0');
 	setorigin (fireball, self.origin);
-	fireball.nextthink = time + 5;
-	fireball.think = SUB_Remove;
+	fireball.nextthink = time + 0.1;
+	fireball.think = fire_addparticles;
 	fireball.touch = fire_touch;
 	
 	self.nextthink = time + (random() * 5) + 3;
 	self.think = fire_fly;
 };
 
+void() fire_addparticles = 
+{
+	self.emiteffectnum = particleeffectnum ("TE_IMP_FIREBALL");
+	self.traileffectnum = particleeffectnum ("EF_NADETRAIL");
+
+	self.nextthink = time + 5;
+	self.think = SUB_Remove;
+}
 
 void() fire_touch =
 {
 	T_Damage (other, self, self.origin, self, 20, 0);
+	self.emiteffectnum = 0;
+	self.traileffectnum = 0;
 	remove(self);
 };
 
@@ -224,7 +235,7 @@ void() barrel_explode =
 		
 	size = (self.maxs - self.mins) * 0.5;
 	//org = size + self.absmin;
-	self.origin = size + self.absmin;
+	//self.origin = size;
 	
 	spd = 1.5 * self.dmg / 200;
 	for(float i = 0; i < 2; i++)
@@ -233,17 +244,19 @@ void() barrel_explode =
 		ThrowDebri ("progs/debris1.mdl", spd, chunkorigin);
 	}
 
+	ThrowDebri ("progs/barrel2c.mdl", spd * 2000, self.origin + '0 0 32');
+	
 	// bottom corners
 	spd = 1.75 * self.dmg / 200;
-	chunkorigin = self.absmin;
+	chunkorigin= self.origin;
 	ThrowDebri ("progs/debris3.mdl", spd, chunkorigin);
-	chunkorigin= self.absmin;
+	chunkorigin= self.origin;
 	chunkorigin[0] += size[0];
 	ThrowDebri ("progs/debris3.mdl", spd, chunkorigin);
-	chunkorigin= self.absmin;
+	chunkorigin= self.origin;
 	chunkorigin[1] += size[1];
 	ThrowDebri ("progs/debris3.mdl", spd, chunkorigin);
-	chunkorigin= self.absmin;
+	chunkorigin= self.origin;
 	chunkorigin[0] += size[0];
 	chunkorigin[1] += size[1];
 	ThrowDebri ("progs/debris3.mdl", spd, chunkorigin);
@@ -258,23 +271,18 @@ void() barrel_explode =
 	}
 	
 	self.flags |= FL_ONGROUND;
+	self.emiteffectnum = 0;
 	BecomeExplosion ();
 	self.origin_z -= 16;
-
-	T_RadiusDamage (self, self, self.dmg, self.dmg, world);
-
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC"), self.origin);
-	pointparticles (particleeffectnum("TE_ROCKETIMPAC2"), self.origin);
-
-	WriteByte (MSG_BROADCAST, SVC_TEMPENTITY);
-	WriteByte (MSG_BROADCAST, TE_EXPLOSION);
-	WriteCoord (MSG_BROADCAST, self.origin_x);
-	WriteCoord (MSG_BROADCAST, self.origin_y);
-	WriteCoord (MSG_BROADCAST, self.origin_z);
+	explosion_wave (self.origin);
+	T_RadiusDamage (self, self, self.dmg, self.dmg, world);	
+	
+	rocketimpact  ();
+	
 };
 
-void()	barrel_anim2 = [2, barrel_anim3   ] {};
-void()	barrel_anim3 = [3, barrel_explode ] {};
+void()	barrel_anim2 = [0, barrel_anim3   ] {self.velocity = '0 0 0'; self.nextthink = time + 0.5;};
+void()	barrel_anim3 = [0, barrel_explode ] {};
 
 void() barrel_die = 
 {
@@ -285,9 +293,12 @@ void() barrel_die =
 		return;
 	}
 
+	self.movetype = MOVETYPE_WALK;
+	self.velocity = normalize(self.origin - self.enemy.origin) * 200;
+	self.emiteffectnum = (particleeffectnum("TE_ARCHVILEFLAME"));
 	self.takedamage = DAMAGE_NO;
 	self.think = barrel_anim2;
-	self.nextthink = time * 0.1;
+	self.nextthink = time + 0.5;
 	self.th_die = SUB_Null;
 };
 
@@ -303,7 +314,7 @@ void() barrel_touch =
 	
 	if (trace_ent == other)
 	{	
-		other.flags = other.flags + FL_ONGROUND;
+		other.flags |= FL_ONGROUND;
 		return;
 	}
 
@@ -325,16 +336,16 @@ void() misc_explobox =
 	local float	oldz;
 	
 	if(!self.mdl) 
-		self.mdl = "maps/b_explob.bsp";
+		self.mdl = "progs/barrels.mdl";
 
 	self.classname = "explo_box";
 	self.solid = SOLID_BBOX;
 	self.movetype = MOVETYPE_STEP;
 	precache_model (self.mdl);
 	setmodel (self, self.mdl);
-
-	setsize (self, self.mins, self.maxs);
-   	setorigin (self, self.origin);
+	setsize (self, '-16 -16 0', '16 16 32');
+   	setorigin (self, self.origin + '16 16 0');
+	self.scale = 0.8;
 
 	if (!self.mass)
 		self.mass = 400;
@@ -369,7 +380,7 @@ Smaller exploding box, REGISTERED ONLY
 
 void() misc_explobox2 =
 {	
-	self.mdl = "maps/b_exbox2.bsp";
+	self.mdl = "progs/barrels.mdl";
 	misc_explobox();
 };
 
@@ -378,14 +389,12 @@ void() misc_explobox2 =
 float SPAWNFLAG_SUPERSPIKE	= 1;
 float SPAWNFLAG_LASER = 2;
 
-void(vector org, vector vec) LaunchLaser;
-
 void() spikeshooter_use =
 {
 	if (self.spawnflags & SPAWNFLAG_LASER)
 	{
 		sound (self, CHAN_VOICE, "enforcer/enfire.wav", 1, ATTN_NORM);
-		LaunchLaser (self.origin, self.movedir);
+		LaunchLaser (self.origin, self.movedir, 0 ,0);
 	}
 	else
 	{
@@ -417,12 +426,15 @@ void() trap_spikeshooter =
 	if (self.spawnflags & SPAWNFLAG_LASER)
 	{
 		precache_model2 ("progs/laser.mdl");
-		
+		self.deathtype = "plasma";
 		precache_sound2 ("enforcer/enfire.wav");
 		precache_sound2 ("enforcer/enfstop.wav");
 	}
 	else
+	{
+		self.deathtype = "spike";
 		precache_sound ("weapons/spike2.wav");
+	}
 };
 
 
@@ -440,30 +452,6 @@ void() trap_shooter =
 	self.nextthink = self.nextthink + self.wait + self.ltime;
 	self.think = shooter_think;
 };
-
-//===============================================================================
-
-/*QUAKED misc_banner (1 .5 0) (-4 -4 -4) (4 4 4)
-The origin is the bottom of the banner.
-The banner is 128 tall.
-*/
-void() misc_banner_think =
-{
-	self.frame = (self.frame + 1) % 16;
-	self.nextthink = time + 0.1;
-}
-
-void() misc_banner =
-{
-	precache_model ("progs/banner.mdl");
-	self.movetype = MOVETYPE_NONE;
-	self.solid = SOLID_NOT;
-	setmodel (self, "progs/banner.mdl");
-	self.frame = rand() % 16;
-
-	self.think = misc_banner_think;
-	self.nextthink = time + 0.1;
-}
 
 //===============================================================================
 
@@ -766,7 +754,7 @@ void() gib_touch =
 
 	if (other.flags & FL_MONSTER)
 	{	
-		self.velocity = normalize(other.angles) * 200;
+		self.velocity = normalize(other.angles) * 150;
 		self.velocity_z = 40*crandom()*8;
 
 		self.flags = self.flags - ( self.flags & FL_ONGROUND );
@@ -787,7 +775,7 @@ void() gib_touch =
 		return;
 	
 	self.flags = self.flags - ( self.flags & FL_ONGROUND );
-	self.velocity = normalize(other.velocity) * 200;
+	self.velocity = normalize(other.velocity) * 150;
 	self.velocity_z = 40*crandom()*8;
 
 	self.avelocity_x = random()*600;
@@ -817,19 +805,21 @@ void(string gibname) ThrowGib =
 	setmodel (new, gibname);
 	setsize (new , '0 0 0', '0 0 0');
 
-	new.movetype = MOVETYPE_BOUNCE;
-	new.velocity_z = 2;
+	new.movetype = MOVETYPE_TOSS;
+	//new.velocity_z = 2;
 
 	new.classname = "gib";
 	new.takedamage = DAMAGE_YES;
 	//new.health = 999999;
-	new.scale = 1.2;
+	new.scale = 1.3;
 
 	new.traileffectnum = particleeffectnum("EF_GIBSPRAY");
 	new.solid = SOLID_TRIGGER;
 	new.avelocity_x = random()*600;
 	new.avelocity_y = random()*600;
 	new.avelocity_z = random()*600;
+	new.velocity = self.velocity + VelocityForDamage(self.health)*0.25;
+	new.velocity = ClipGibVelocity(new.velocity);
 	new.touch = gib_touch;
 	new.think = gib_Remove;
 	new.ltime = time;
@@ -845,12 +835,12 @@ void(string gibname) ThrowHead2 =
 	new = spawn();
 	setorigin(new, self.origin);
 	new.origin_z = self.absmax_z;
-	new.scale = 1.5;
+	new.scale = 1.7;
 	
 	setmodel (new , gibname);
 	setsize (new , '0 0 0', '0 0 0');
 	
-	new.movetype = MOVETYPE_BOUNCE;
+	new.movetype = MOVETYPE_TOSS;
 	new.traileffectnum = particleeffectnum("EF_GIBSPRAY");
 
 	new.solid = SOLID_TRIGGER;
@@ -861,9 +851,10 @@ void(string gibname) ThrowHead2 =
 	//new.th_pain = gib_pain;
 
 	new.touch = gib_touch;
-	new.velocity_z = 2;
+	new.velocity = self.velocity + VelocityForDamage(self.health)*0.25;
+	new.velocity = ClipGibVelocity(new.velocity);
+
 	new.think = gib_Remove;
-	new.ltime = time;
 	new.angles_y = self.ideal_yaw;
 	new.nextthink = time + 10 + random()*10;
 	new.frame = 0;
@@ -878,12 +869,15 @@ void(string gibname, float vel, vector org) ThrowDebri =
 
 	setmodel (new, gibname);
 	setsize (new, '0 0 0', '0 0 0');
+
+	if (gibname == "progs/barrel2c.mdl")
+		new.scale = 0.6;
 	
 	new.velocity = self.velocity + VelocityForDamage(vel);
 	new.velocity = ClipGibVelocity(new.velocity);
 	
 	new.movetype = MOVETYPE_BOUNCE;
-	new.solid = SOLID_NOT;
+	new.solid = SOLID_TRIGGER;
 	new.avelocity_x = random()*600;
 	new.avelocity_y = random()*600;
 	new.avelocity_z = random()*600;
@@ -896,7 +890,7 @@ void(string gibname, float vel, vector org) ThrowDebri =
 
 void(float dm) MonsterGib =
 {	
-	//sound(self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
+	sound (self, CHAN_VOICE, "player/udeath.wav", 1, ATTN_NORM);
 
 	for(float i = 0; i < 2; i++)
 		ThrowGib ("progs/pork1.mdl");
@@ -914,15 +908,8 @@ void(float dm) MonsterGib =
 		ThrowGib ("progs/pork5.mdl");
 
 	ThrowHead2 ("progs/brain.mdl");
-	pointparticles (particleeffectnum("TE_BLOODSPRAY"), self.origin + '0 0 24', '0 0 0', 8);
-}
-
-void(vector org) SHOCKING_INNIT =
-{
-	for(float i = 0; i < 4; i++)
-		ThrowDebri ("progs/debris2.mdl", 10, org);
-	for(float i = 0; i < 2; i++)
-		ThrowDebri ("progs/debris1.mdl", 5, org);
+	pointparticles (particleeffectnum("TE_GORESPRAY"), self.origin + '0 0 24', '0 0 0', 4);
+	SpawnBloodSplat (self.origin + '0 0 24', '0 0 -20', 0);
 }
 
 void() deadsoldier_gib =
@@ -930,17 +917,9 @@ void() deadsoldier_gib =
 	if (self.health > -80)
 		return;
 	
-	//sound (self, CHAN_BODY, "player/udeath.wav", 1, ATTN_NORM);
+	sound (self, CHAN_BODY, "player/udeath.wav", 1, ATTN_NORM);
 
-	for(float i = 0; i < 4; i++)
-		ThrowGib ("progs/sm_meat.mdl");
-
-	ThrowGib ("progs/arm.mdl");
-
-	ThrowGib ("progs/leg.mdl");
-
-	for(float i = 0; i < 1; i++)
-		ThrowGib ("progs/bone.mdl");
+	MonsterGib (self.dmg);
 
 };
 
@@ -985,4 +964,67 @@ void() misc_deadsoldier =
      			self.frame = 0;
      			break;
    	} 
+};
+
+void() misc_corpse =
+{	
+	precache_model ("progs/corpse1.md3");
+	setmodel (self, "progs/corpse1.md3");
+	setsize(self, VEC_ORIGIN, VEC_ORIGIN);
+	self.movetype = MOVETYPE_NONE;
+	
+	self.scale = 0.72;
+};
+
+void() misc_evilmeat1 =
+{	
+	precache_model ("progs/evilmeat.md3");
+	setmodel (self, "progs/evilmeat.md3");
+	setsize(self, VEC_ORIGIN, VEC_ORIGIN);
+	self.movetype = MOVETYPE_NONE;
+
+
+	self.scale = 0.8;
+};
+
+void() evilmeat2_think =
+{
+	self.frame ++;		
+	if (self.frame >= 79)
+		self.frame = 0;
+
+	self.think = evilmeat2_think;
+	self.nextthink = time + 0.035;
+};
+
+void() misc_evilmeat2 =
+{	
+	precache_model ("progs/caged_meat.md3");
+	setmodel (self, "progs/caged_meat.md3");
+	setsize(self, VEC_ORIGIN, VEC_ORIGIN);
+	self.movetype = MOVETYPE_NONE;
+	
+	self.think = evilmeat2_think;
+	self.nextthink = time + 0.035;
+	self.scale = 0.8;
+};
+
+void() misc_pile1 =
+{	
+	precache_model ("progs/piles_b.md3");
+	setmodel (self, "progs/piles_b.md3");
+	setsize(self, VEC_ORIGIN, VEC_ORIGIN);
+	self.movetype = MOVETYPE_NONE;
+	
+	self.scale = 0.72;
+};
+
+void() misc_pile2 =
+{	
+	precache_model ("progs/piles_c.md3");
+	setmodel (self, "progs/piles_c.md3");
+	setsize(self, VEC_ORIGIN, VEC_ORIGIN);
+	self.movetype = MOVETYPE_NONE;
+	
+	self.scale = 0.72;
 };

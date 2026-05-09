@@ -173,12 +173,17 @@ void() worldspawn =
 {
 	lastspawn = world;
 	InitBodyQue ();
+	
+//registercvar("g_autoswitch", "0");
+	registercvar("g_autoreload", "0");
 
 // custom map attributes
 	if (self.model == "maps/e1m8.bsp")
 		cvar_set ("sv_gravity", "100");
 	else
 		cvar_set ("sv_gravity", "800");
+
+	cvar_set ("g_autoreload", "0");
 
 // the area based ambient sounds MUST be the first precache_sounds
 
@@ -259,6 +264,10 @@ void() worldspawn =
 	precache_model ("progs/male/tris.mdl");
 	precache_model ("progs/player.mdl");
 	precache_model ("progs/eyes.mdl");
+
+	precache_model ("progs/barrels.mdl");
+	precache_model ("progs/barrel2c.mdl");
+	
 	precache_model ("progs/h_player.mdl");
 	precache_model ("progs/gib1.mdl");
 	precache_model ("progs/gib2.mdl");
@@ -266,6 +275,9 @@ void() worldspawn =
 	precache_model ("progs/debris1.mdl");
 	precache_model ("progs/debris2.mdl");
 	precache_model ("progs/debris3.mdl");
+
+	precache_model ("progs/bfgsac.md3");
+	precache_model ("progs/bfgballblast.md3");
 
 	precache_model ("progs/pork1.mdl");
 	precache_model ("progs/pork2.mdl");
@@ -275,7 +287,7 @@ void() worldspawn =
 	precache_model ("progs/brain.mdl");
 
 	precache_model ("progs/laser.mdl");
-	precache_model ("progs/plasma.mdl");
+	precache_model ("progs/plasma.md3");
 
 
 	precache_model ("progs/s_bubble.spr");	// drowning bubbles
@@ -285,17 +297,19 @@ void() worldspawn =
 	precache_model ("progs/muzzleflash.spr");	
 	
 	
-	precache_model ("progs/v_blast.mdl");
-	precache_model ("progs/v_shotg.mdl");
-	precache_model ("progs/v_shotg2.mdl");
-	precache_model ("progs/v_machn.mdl");
-	precache_model ("progs/v_chain.mdl");
-	precache_model ("progs/v_rocket.mdl");
-	precache_model ("progs/v_launch.mdl");
-	precache_model ("progs/v_hyperb.mdl");
-	precache_model ("progs/v_rail.mdl");
-	precache_model ("progs/v_bfg.mdl");
-	precache_model ("progs/v_handgr.mdl");
+	precache_model ("progs/v_blast.md3");
+	precache_model ("progs/v_shotg.md3");
+	precache_model ("progs/v_shotg2.md3");
+	precache_model ("progs/v_shotg3.md3");
+	precache_model ("progs/v_machn.md3");
+	precache_model ("progs/v_chain.md3");
+	precache_model ("progs/v_rocket.md3");
+	precache_model ("progs/v_launch.md3");
+	precache_model ("progs/v_hyperb.md3");
+	precache_model ("progs/v_rail.md3");
+	precache_model ("progs/v_bfg.md3");
+	precache_model ("progs/v_handgr.md3");
+	precache_model ("progs/v_grav.md3");
 
 	precache_model ("progs/male/w_blaster.mdl");
 	precache_model ("progs/male/w_shotgun.mdl");
@@ -319,9 +333,7 @@ void() worldspawn =
 
 	precache_model ("progs/spike.mdl");
 	precache_model ("progs/s_spike.mdl");
-	precache_model ("progs/bfg1.spr");
-	precache_model ("progs/bfg2.spr");
-	precache_model ("progs/bfg3.spr");
+
 	precache_model ("progs/smoke.mdl");
 	precache_model ("progs/flash.mdl");
 	precache_model ("progs/explode.mdl");
@@ -330,25 +342,33 @@ void() worldspawn =
 	precache_model ("progs/shell3.mdl");
 	precache_model ("progs/shell4.mdl");
 	precache_model ("progs/shell5.mdl");
-	precache_model ("progs/tracer.mdl");
+	precache_model ("progs/shell6.mdl");
 
 	precache_model ("progs/backpack.mdl");
-
+	precache_model ("progs/explo_wave.md3");
 	precache_model ("progs/zom_gib.mdl");
+	precache_model ("progs/tracer.md3");
+
+	//precache_sound ("chell/laugh_03.wav");
 	
 	particleeffectnum("d3fx.cfg");
 	particleeffectnum("TE_BFG_BIGEXPLOSION");
+	particleeffectnum("TE_BFG_BIGEXPLOSION2");
+
 	particleeffectnum("EF_BLASTER");
 	particleeffectnum("EF_PLASMA");
 	particleeffectnum("EF_PLASMA2");
 	particleeffectnum("EF_ROCKETTRAIL");
 	particleeffectnum("EF_CACOTRAIL");
 	particleeffectnum("EF_NADETRAIL");
+	particleeffectnum("EF_NADETRAIL2");
 	particleeffectnum("EF_REVTRAIL");
 	particleeffectnum("TE_EXPLOSION_DUST");
 	particleeffectnum("TE_EXPLOSION_DUST2");
 	particleeffectnum("TE_EXPLOSION_DUST3");
-	particleeffectnum("TE_CACO_FLAME");
+	particleeffectnum("TE_EXPLOSION_BLAST"); particleeffectnum("TE_EXPLOSION_BLAST2");
+	particleeffectnum("TE_SHOCK_DUST");
+
 	particleeffectnum("TE_BLOODSPRAY");
 	particleeffectnum("EF_GIBSPRAY");
 	particleeffectnum("TE_EXPLOD");
@@ -359,16 +379,46 @@ void() worldspawn =
 	particleeffectnum("TE_ROCKETIMPAC2");
 	particleeffectnum("TE_PLASIMPACT");
 	particleeffectnum("TE_PLASIMPACT2");
+	particleeffectnum("TE_PLASIMPACT3");
 
 	particleeffectnum("TE_LEADIMPACT");
 	particleeffectnum("EF_FLASHLIGHT");
 
 	particleeffectnum("EF_BFGBALL");
 	particleeffectnum("TE_DUST");
-
-
+	
+	particleeffectnum("TE_BFGBEAM");
+	particleeffectnum("TE_RAILTRAIL");
+	particleeffectnum("TE_SUMMON");
+	particleeffectnum("TE_ARCHVILEFLAME"); particleeffectnum("TE_ARCHVILEFLAME_HAND"); 
+	particleeffectnum("EF_ARCHVILEFLAME_LIGHT"); particleeffectnum("EF_ARCHVILEFLAME_HAND_LIGHT"); 
+	particleeffectnum("TE_BURNT");	
+	particleeffectnum("TE_IMP_FIREBALL");
+	particleeffectnum("TE_HK_FIREBALL");
+	particleeffectnum("TE_MANC_FIREBALL");
+	particleeffectnum("TE_CACO_FIREBALL"); 	particleeffectnum("TE_CACO_FLAME");
+	particleeffectnum("EF_CACO_FIREBALL");
+	particleeffectnum("TE_BFGBALLSAC");
+	particleeffectnum("TE_PLASMA");
+	particleeffectnum("TE_GORESPRAY");
+	
+	particleeffectnum("EF_EXPLODLIGHT2");
+	particleeffectnum("EF_SUMMONLIGHT");
+	particleeffectnum("te_lightning2");
+	particleeffectnum("te_lightning2_end");
+	particleeffectnum("TE_CYBIE_FIREBALL");
+	particleeffectnum("EF_MANC_FIRETRAIL");
+	particleeffectnum("EF_CYBIE_FIRETRAIL");
 	item_precaches ();
-
+	
+	clientstat(29, EV_FLOAT, velocity.x);
+	clientstat(30, EV_FLOAT, velocity.y);
+	clientstat(31, EV_FLOAT, velocity.z);
+	clientstat(32, EV_FLOAT, flags);
+	clientstat(33, EV_FLOAT, weaponid);
+	clientstat(34, EV_FLOAT, hitmarker_time);
+	clientstat(35, EV_FLOAT, shake_interval);
+	clientstat(36, EV_FLOAT, shake_time);
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 //

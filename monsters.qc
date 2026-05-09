@@ -29,8 +29,8 @@ float SPAWN_ANGRY = 16;
 void() monster_spawn =
 {		
 	self.spawnflags &= ~TRIGGER_SPAWN;
-	if(!(self.spawnflags & SPAWN_SLIENT))
-		spawn_tfog(self.origin);
+	//if(!(self.spawnflags & SPAWN_SLIENT))
+	//	spawn_tfog(self.origin);
 	
 	self.th_spawn();
 	
@@ -142,6 +142,7 @@ void() walkmonster_start_go =
 	}
 	
 	self.takedamage = DAMAGE_AIM;
+	self.touch = __NULL__;
 
 	self.ideal_yaw = self.angles * '0 1 0';
 	if (!self.yaw_speed)
@@ -160,6 +161,7 @@ void() walkmonster_start_go =
 	{
 		self.model = string_null;
 		self.solid = SOLID_NOT;
+		self.emiteffectnum = 0;
 		return;
 	}
 	
@@ -180,18 +182,23 @@ void() walkmonster_start_go =
 			self.pausetime = 99999999;
 			self.th_stand ();
 	}
-	else if((self.enemy != world || self.oldenemy != world))
+	else if((self.enemy || self.oldenemy))
 	{
+		//bprint ("hello", "\n");
 		if(self.enemy.health > 0)
 		{
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else if(self.oldenemy.health > 0) // was resurrected
 		{	
 			self.enemy = self.oldenemy;
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else 
 		{
@@ -205,53 +212,16 @@ void() walkmonster_start_go =
 		self.th_stand ();
 	}
 
-
 // spread think times so they don't all happen at same time
 	self.nextthink = self.nextthink + random()*0.5;
 };
-
-void() SightSound =
-{
-local float	rsnd;
-
-	if (self.classname == "monster_knight")
-		sound (self, CHAN_VOICE, "knight/ksight.wav", 1, ATTN_NORM);
-	else if (self.classname == "monster_wizard")
-		sound (self, CHAN_VOICE, "wizard/wsight.wav", 1, ATTN_NORM);
-	else if (self.classname == "monster_zombie")
-		sound (self, CHAN_VOICE, "zombie/z_idle.wav", 1, ATTN_NORM);
-	else if (self.classname == "monster_dog")
-		sound (self, CHAN_VOICE, "dog/dsight.wav", 1, ATTN_NORM);
-	else if (self.classname == "monster_hell_knight")
-		sound (self, CHAN_VOICE, "hknight/sight1.wav", 1, ATTN_NORM);
-	else if (self.classname == "monster_tarbaby")
-		sound (self, CHAN_VOICE, "blob/sight1.wav", 0.85, ATTN_NORM);
-	else if (self.classname == "monster_enforcer")
-	{
-		rsnd = rint(random() * 3);			
-		if (rsnd == 1)
-			sound (self, CHAN_VOICE, "enforcer/sight1.wav", 1, ATTN_NORM);
-		else if (rsnd == 2)
-			sound (self, CHAN_VOICE, "enforcer/sight2.wav", 1, ATTN_NORM);
-		else if (rsnd == 0)
-			sound (self, CHAN_VOICE, "enforcer/sight3.wav", 1, ATTN_NORM);
-		else
-			sound (self, CHAN_VOICE, "enforcer/sight4.wav", 1, ATTN_NORM);
-	}
-	else if (self.classname == "monster_shalrath")
-		sound (self, CHAN_VOICE, "shalrath/sight.wav", 1, ATTN_NORM);
-};
-
 
 void() walkmonster_start =
 {
 // delay drop to floor to make sure all doors have been spawned
 // spread think times so they don't all happen at same time
 	self.nextthink = self.nextthink + random()*0.5;
-	self.think = walkmonster_start_go;
-
-	if (!self.th_sight)
-		self.th_sight = SightSound;
+	self.think = walkmonster_start_go;		
 
 	if((self.flags & FL_RESURRECTED)) 
 		return;
@@ -285,6 +255,7 @@ void() flymonster_start_go =
 	{
 		self.model = string_null;
 		self.solid = SOLID_NOT;
+		self.emiteffectnum = 0;
 		return;
 	}
 	
@@ -306,18 +277,22 @@ void() flymonster_start_go =
 			self.th_stand ();
 	}
 	 // was resurrected
-	else if((self.enemy != world || self.oldenemy != world))
+	else if((self.enemy || self.oldenemy))
 	{
 		if(self.enemy.health > 0)
 		{
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else if(self.oldenemy.health > 0) // was resurrected
 		{	
 			self.enemy = self.oldenemy;
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else 
 		{
@@ -331,17 +306,19 @@ void() flymonster_start_go =
 		self.th_stand ();
 	}
 
+// spread think times so they don't all happen at same time
+	self.nextthink = self.nextthink + random()*0.5;
+
 };
 
 void() flymonster_start =
 {
 // spread think times so they don't all happen at same time
 
-	if (!self.th_sight)
-		self.th_sight = SightSound;
-
 	self.nextthink = self.nextthink + random()*0.5;
 	self.think = flymonster_start_go;
+	self.fly_roll = 0;
+	self.fly_pitch = 0;
 
 	if((self.flags & FL_RESURRECTED)) 
 		return;
@@ -390,18 +367,22 @@ void() swimmonster_start_go =
 		self.ideal_yaw = vectoyaw(self.goalentity.origin - self.origin);
 		self.th_walk ();
 	}
-	else	if((self.enemy != world || self.oldenemy != world))
+	else	if((self.enemy || self.oldenemy ))
 	{
 		if(self.enemy.health > 0)
 		{
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else if(self.oldenemy.health > 0) // was resurrected
 		{	
 			self.enemy = self.oldenemy;
 			self.pausetime = 0;
 			FoundTarget(self);
+			self.nextthink = time;
+			return;
 		}
 		else 
 		{
@@ -424,9 +405,6 @@ void() swimmonster_start =
 {
 // spread think times so they don't all happen at same time
 
-	if (!self.th_sight)
-		self.th_sight = SightSound;
-
 	self.nextthink = self.nextthink + random()*0.5;
 	self.think = swimmonster_start_go;
 
@@ -434,6 +412,39 @@ void() swimmonster_start =
 		return;
 
 	total_monsters = total_monsters + 1;
+};
+
+void() monster_minotaur =
+{	
+	if (self.spawnflags & 4)
+		self.spawnflags &= ~4;
+	monster_sheol ();
+};
+
+void() monster_lostsoul =
+{
+	monster_tarbaby ();
+};
+
+void() monster_voreling =
+{
+	monster_myling ();
+};
+
+void() monster_gargoyle =
+{	
+	//self.origin[2] -= 24;
+	monster_wizard ();
+};
+
+void() monster_boglord =
+{	
+	self.origin[2] -= 24;
+	if (self.spawnflags & 2)
+		monster_shalrath2 ();
+
+	else
+		monster_shambler2 ();
 };
 
 

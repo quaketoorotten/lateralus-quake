@@ -492,6 +492,7 @@ void(float dist) M_MoveToGoal =
 	// bump around...
 	if ((random() < 0.333) || !SV_StepDirection(self.ideal_yaw, dist)) {
 		SV_NewChaseDir(goal, dist);
+		ai_adjustflyangle (dist);
 	}
 };
 

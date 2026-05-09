@@ -32,15 +32,9 @@ float	IT_SUPER_NAILGUN			= 1<<3;
 float	IT_GRENADE_LAUNCHER		= 1<<4;
 float	IT_ROCKET_LAUNCHER		= 1<<5;
 float	IT_LIGHTNING			= 1<<6;
-float	IT2_RAILGUN				= 1<<0;
 float	IT_BFG				= 1<<7;
-float	IT_HANDGR				= 1<<16;
-
-
-float	IT_SHELLS				= 1<<8;
-float	IT_NAILS				= 1<<9;
-float	IT_ROCKETS				= 1<<10;
-float	IT_CELLS				= 1<<11;
+float	IT_CHAINSAW				= 1<<8;
+float	IT_DOUBLEBARREL			= 1<<9;
 
 float	IT_ARMOR1				= 1<<13;
 float	IT_ARMOR2				= 1<<14;
@@ -73,6 +67,19 @@ static string number[10] = {
 	"gfx/num_8",
 	"gfx/num_9"
 };
+
+static string hudnumber[10] = {
+	"gfx/hud_n0",
+	"gfx/hud_n1",
+	"gfx/hud_n2",
+	"gfx/hud_n3",
+	"gfx/hud_n4",
+	"gfx/hud_n5",
+	"gfx/hud_n6",
+	"gfx/hud_n7",
+	"gfx/hud_n8",
+	"gfx/hud_n9"
+};
 static string anumber[10] = {
 	"gfx/anum_0",
 	"gfx/anum_1",
@@ -86,7 +93,6 @@ static string anumber[10] = {
 	"gfx/anum_9"
 };
 static string weaponnames[] = {
-	"axe",
 	"shotgun",
 	"sshotgun",
 	"nailgun",
@@ -94,10 +100,7 @@ static string weaponnames[] = {
 	"rlaunch",
 	"srlaunch",
 	"lightng",
-	"rail",
-	"bfg",
-	"gren",
-#define WEAPONICONS 11
+#define WEAPONICONS 7
 #define LIGHTNING_WIDTH 48
 };
 static string facetab[] = {
@@ -115,6 +118,7 @@ static float sweapon;		//copy of .weapon
 static float shealth;		//copy of .health
 
 //Note: these are not tracked for splitscreen, which limits them to one player. We're lazy and just don't update them.
+static float flashtime[WEAPONICONS];	//tracks the time that various items were obtained, so we can flash stuff accordingly.
 static float painfinishtime;//tracks when we took damage, for flinching.
 
 
@@ -139,7 +143,6 @@ static void() Hud_Init
 	precache_pic("gfx/sb_nails", TRUE);
 	precache_pic("gfx/sb_rocket", TRUE);
 	precache_pic("gfx/sb_cells", TRUE);
-	precache_pic("gfx/sb_emp", TRUE);
 
 	precache_pic("gfx/sb_key1", TRUE);
 	precache_pic("gfx/sb_key2", TRUE);
@@ -153,20 +156,19 @@ static void() Hud_Init
 	precache_pic("gfx/sb_sigil3", TRUE);
 	precache_pic("gfx/sb_sigil4", TRUE);
 
-	precache_pic("gfx/field", TRUE);
-
 	for (i = 0; i < weaponnames.length; i++)
-	{	
+	{
 		precache_pic(strcat("gfx/inv_", weaponnames[i]), TRUE);
 		precache_pic(strcat("gfx/inv2_", weaponnames[i]), TRUE);
-		precache_pic(strcat("gfx/inv3_", weaponnames[i]), TRUE);
+		precache_pic(strcat("gfx/inva1_", weaponnames[i]), TRUE);
+		precache_pic(strcat("gfx/inva2_", weaponnames[i]), TRUE);
+		precache_pic(strcat("gfx/inva3_", weaponnames[i]), TRUE);
+		precache_pic(strcat("gfx/inva4_", weaponnames[i]), TRUE);
+		precache_pic(strcat("gfx/inva5_", weaponnames[i]), TRUE);
 	}
 	for (i = 0; i < facetab.length; i++)
 		precache_pic(facetab[i], TRUE);
 };
-
-
-
 
 static void(vector pos, float value, float threshhold) Hud_DrawLargeValue =
 {
@@ -208,6 +210,32 @@ static void(vector pos, float value, float threshhold) Hud_DrawLargeValue =
 	}
 };
 
+static void(vector pos, float value, float threshhold) Hud2_DrawLargeValue =
+{
+	float c;
+	float len;
+	string s;
+	if (value < 0)
+		value = 0;	//hrm
+	if (value>999)
+		value = 999;
+
+	s = ftos(floor(value));
+	len = strlen(s);
+
+	pos_x += 10 * (4-len);
+	
+	//use normal numbers
+
+		while(len>0)
+		{
+			len--;
+			c = str2chr(s, len);
+
+			drawpic(pos+len * '14 0 0', hudnumber[c-'0'], '12 12 0', '1 1 1', 1, 0);
+		}
+};
+
 static void(float type, vector pos, float drawback) Hud_DrawAmmoCount =
 {
 	string s;
@@ -219,28 +247,59 @@ static void(float type, vector pos, float drawback) Hud_DrawAmmoCount =
 		value = 0;	//hrm
 	if (value>999)
 		value = 999;
-		
-	if (drawback)
-	{
-		drawsubpic(pos, '42 11', "gfx/ibar", [(3.0/320)+type*(48.0/320), 0], [42.0/320, 11.0/24], '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
-		pos_x += 8;
-	}
 
 	s = ftos(floor(value));
 	len = strlen(s);
 
-	pos_x += 8 * (3-len);
+	pos_x += 5 * (3-len);
 	while(len>0)
 	{
 		len--;
 		c = str2chr(s, len);
-		drawcharacter(pos+len * '8 0 0', (18-'0') + c, '8 8 0', '1 1 1', 1, 0);
+		drawcharacter(pos+len * '5 0 0', (18-'0') + c, '8 8 0', '1 1 1', 1, 0);
 	}
 };
 
-static void(float num, vector pos, string prefix) Hud_DrawWeapon =
+static void(float num, vector pos) Hud_DrawWeapon =
 {
-	drawpic(pos, strcat(prefix, weaponnames[num]), '24 24 0', '1 1 1', 1, 0);
+	string prefix;
+	float flash = (time - flashtime[num])*10;
+	if (flash >= 10)
+	{
+		if (sweapon == (1<<num))
+			prefix = "gfx/inv2_";
+		else
+			prefix = "gfx/inv_";
+	}
+	else
+	{
+		static string tab[] = {"gfx/inva1_","gfx/inva2_","gfx/inva3_","gfx/inva4_","gfx/inva5_"};
+		if (flash >= 5)
+			flash -= 5;
+		prefix = tab[flash];
+	}
+
+	drawpic(pos, strcat(prefix, weaponnames[num]), '24 16 0', '1 1 1', 1, 0);
+};
+static void(float num, float lflashtime, float iscurrent, vector pos, float drawwidth, float imgwidth) Hud_DrawWeaponEx =
+{
+	string prefix;
+	float flash = (time - lflashtime)*10;
+	if (flash >= 10)
+	{
+		if (iscurrent)
+			prefix = "gfx/inv2_";
+		else
+			prefix = "gfx/inv_";
+	}
+	else
+	{
+		static string tab[] = {"gfx/inva1_","gfx/inva2_","gfx/inva3_","gfx/inva4_","gfx/inva5_"};
+		if (flash >= 5)
+			flash -= 5;
+		prefix = tab[flash];
+	}
+	drawsubpic(pos, [drawwidth, 16], strcat(prefix, weaponnames[num]), '0 0 0', [drawwidth/imgwidth, 1], '1 1 1', 1, 0);
 };
 
 static string(float f, float chars, string lead) FormatFloat
@@ -348,139 +407,113 @@ static void Hud_DrawFace(vector pos)
 	}
 	
 	if (shealth > 100)
-		Hud_PicOrModel(pos, face, "maps/b_bh100.bsp", 0, -90);
+		drawpic(pos +' -2 -6 0', face, '24 24 0', '1 1 1', 1, 0);
 	else if (shealth > 50)
-		Hud_PicOrModel(pos, face, "maps/b_bh25.bsp", 0, -90);
+		drawpic(pos+' -2 -6 0', face, '24 24 0', '1 1 1', 1, 0);
 	else
-		Hud_PicOrModel(pos, face, "maps/b_bh10.bsp", 0, -90);
+		drawpic(pos+' -2 -6 0', face, '24 24 0', '1 1 1', 1, 0);
 };
 
-
-static void Hud_DrawSbarWeapons (vector pos, vector virtsize)
-{
-	vector pos1 = pos + '296 -32 0';
-	if (sweapon == IT_AXE)				Hud_DrawWeapon(0, pos1, "gfx/inv2_");
-	if (sweapon == IT_SHOTGUN)			Hud_DrawWeapon(1, pos1, "gfx/inv2_");
-	if (sweapon == IT_SUPER_SHOTGUN)		Hud_DrawWeapon(2, pos1, "gfx/inv2_");
-	if (sweapon == IT_NAILGUN)			Hud_DrawWeapon(3, pos1, "gfx/inv2_");
-	if (sweapon == IT_SUPER_NAILGUN)		Hud_DrawWeapon(4, pos1, "gfx/inv2_");
-	if (sweapon == IT_GRENADE_LAUNCHER)		Hud_DrawWeapon(5, pos1, "gfx/inv2_");
-	if (sweapon == IT_ROCKET_LAUNCHER)		Hud_DrawWeapon(6, pos1, "gfx/inv2_");
-	if (sweapon == IT_LIGHTNING)			Hud_DrawWeapon(7, pos1, "gfx/inv2_");
-	if (sweapon == 1<<23	)			Hud_DrawWeapon(8, pos1, "gfx/inv2_");
-	if (sweapon == IT_BFG)				Hud_DrawWeapon(9, pos1, "gfx/inv2_");
-	if (sweapon == IT_HANDGR)				Hud_DrawWeapon(10, pos1, "gfx/inv2_");
-}
 
 static void Hud_DrawSBar(vector pos, vector virtsize)
 {	
-	local float ammored = 10;
-	drawpic(pos+'224 0 0', "gfx/sb_emp", '24 24 0', '1 1 1', 1, 0);
-	drawpic(pos+'248 0 0', "gfx/field", '72 24 0', '1 1 1', 1, 0);
+	if (autocvar(cl_sbar, 1))
+		drawpic(pos + '0 -24 0', "gfx/sbar1", '321 48 0', '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
+	
+//	Hud_DrawAmmoCount(0, pos + '294 -6', FALSE);
+//	Hud_DrawAmmoCount(1, pos + '294 0', FALSE);
+//	Hud_DrawAmmoCount(2, pos + '294 6', FALSE);
+//	Hud_DrawAmmoCount(3, pos + '294 12', FALSE);
 
+	if (sweapon == IT_DOUBLEBARREL)		Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_SHELLS), -1);
+	if (sweapon == IT_AXE)				Hud2_DrawLargeValue(pos+'248 -1 0', 0, -1);
+	if (sweapon == IT_SHOTGUN)			Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_SHELLS), -1);
+	if (sweapon == IT_SUPER_SHOTGUN)		Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_SHELLS), -1);
+	if (sweapon == IT_NAILGUN)			Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_NAILS), -1);
+	if (sweapon == IT_SUPER_NAILGUN)		Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_NAILS), -1);
+	if (sweapon == IT_GRENADE_LAUNCHER)		Hud2_DrawLargeValue(pos+'252 -1 0', getstatf(STAT_ROCKETS), -1);
+	if (sweapon == IT_ROCKET_LAUNCHER)		Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_CELLS), -1);
+	if (sweapon == IT_LIGHTNING)			Hud2_DrawLargeValue(pos+'252 -1 0', getstatf(STAT_ROCKETS), -1);
+	if (sweapon == IT_CHAINSAW)			Hud2_DrawLargeValue(pos+'248 -1 0', 0, -1);
+	if (sweapon == IT_BFG)				Hud2_DrawLargeValue(pos+'254 -1 0', getstatf(STAT_CELLS), -1);
+		
 	if (sitems & IT_INVULNERABILITY)
 	{
-		drawpic(pos+'224 0 0', "gfx/disc", '24 24 0', '1 1 1', 1, 0);
-		Hud_DrawLargeValue(pos+'246 0 0', 666, 666);
+		//drawpic(pos, "gfx/disc", '24 24 0', '1 1 1', 1, 0);
+		Hud2_DrawLargeValue(pos+'180 -1 0', 999, -1);
 	}
 	else
-	{	
-		Hud_DrawLargeValue(pos+'246 0 0', getstatf(STAT_ARMOR), 5);
-		if (sitems & IT_ARMOR3)
-			drawpic(pos+'224 0 0', "gfx/sb_armor3", '24 24 0', '1 1 1', 1, 0);
-		else if (sitems & IT_ARMOR2)
-			drawpic(pos+'224 0 0', "gfx/sb_armor2", '24 24 0', '1 1 1', 1, 0);
-		else if (sitems & IT_ARMOR1)
-			drawpic(pos+'224 0 0', "gfx/sb_armor1", '24 24 0', '1 1 1', 1, 0);
+	{
+		Hud2_DrawLargeValue(pos+'180 -1 0', getstatf(STAT_ARMOR), -1);
 	}
+	//getstatf(STAT_ARMOR)
 
-	Hud_DrawFace(pos);
-	drawpic(pos+'24 0 0', "gfx/field", '72 24 0', '1 1 1', 1, 0);
-	Hud_DrawLargeValue(pos+'22 0 0', shealth, 25);
-
-	if (sweapon == IT_AXE)
-		ammored = -1;
+	Hud_DrawFace(pos+'150 0 0');
+	Hud2_DrawLargeValue(pos+'48 -1 0', shealth, -1);
 	
-	drawpic(pos+'112 0 0', "gfx/sb_emp", '24 24 0', '1 1 1', 1, 0);
-	drawpic(pos+'136 0 0', "gfx/field", '72 24 0', '1 1 1', 1, 0);
-	if (sitems & IT_SHELLS)
-		drawpic(pos+'112 0 0', "gfx/sb_shells", '24 24 0', '1 1 1', 1, 0);
-	else if (sitems & IT_NAILS)
-		drawpic(pos+'112 0 0', "gfx/sb_nails", '24 24 0', '1 1 1', 1, 0);
-	else if (sitems & IT_ROCKETS)
-		drawpic(pos+'112 0 0', "gfx/sb_rocket", '24 24 0', '1 1 1', 1, 0);
-	else if (sitems & IT_CELLS)
-		drawpic(pos+'112 0 0', "gfx/sb_cells", '24 24 0', '1 1 1', 1, 0);
-	Hud_DrawLargeValue(pos +'134 0 0', getstatf(STAT_AMMO), ammored);
+	if (getstatf(STAT_AMMO) > 99)
+		Hud2_DrawLargeValue(pos+'-3 -1 0', getstatf(STAT_AMMO), -1);
+	else if (getstatf(STAT_AMMO) > 9)
+		Hud2_DrawLargeValue(pos+'-5 -1 0', getstatf(STAT_AMMO), -1);
+	else
+		Hud2_DrawLargeValue(pos+'-5 -1 0', getstatf(STAT_AMMO), -1);
+	
+	if (sitems & IT_KEY1)
+		drawpic(pos+'236 -9 0', "gfx/sb_key1", '16 16 0', '1 1 1', 1, 0);
+	if (sitems & IT_KEY2)
+		drawpic(pos+'236 1 0', "gfx/sb_key2", '16 16 0', '1 1 1', 1, 0);
+};
 
-	Hud_DrawSbarWeapons (pos, virtsize);
+static void Hud_DrawIBar(vector pos, vector br)
+{
+	
+	//standard nq sbar
+	//	drawpic(pos + '0 9 0', "gfx/ibar", '320 9 0', '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
+	
 
 	if (sitems & IT_KEY1)
-		drawpic(pos+'192 -32 0', "gfx/sb_key1", '16 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'192 8 0', "gfx/sb_key1", '16 16 0', '1 1 1', 1, 0);
 	if (sitems & IT_KEY2)
-		drawpic(pos+'208 -32 0', "gfx/sb_key2", '16 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'208 8 0', "gfx/sb_key2", '16 16 0', '1 1 1', 1, 0);
 	if (sitems & IT_INVISIBILITY)
-		drawpic(pos+'224 -32 0', "gfx/sb_invis", '16 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'224 8 0', "gfx/sb_invis", '16 16 0', '1 1 1', 1, 0);
 	if (sitems & IT_INVULNERABILITY)
-		drawpic(pos+'240 -32 0', "gfx/sb_invuln", '16 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'240 8 0', "gfx/sb_invuln", '16 16 0', '1 1 1', 1, 0);
 	if (sitems & IT_SUIT)
-		drawpic(pos+'256 -32 0', "gfx/sb_suit", '16 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'256 8 0', "gfx/sb_suit", '16 16 0', '1 1 1', 1, 0);
 	if (sitems & IT_QUAD)
-		drawpic(pos+'272 -32 0', "gfx/sb_quad", '16 16 0', '1 1 1', 1, 0);
-};
+		drawpic(pos+'272 8 0', "gfx/sb_quad", '16 16 0', '1 1 1', 1, 0);
 
-static void Hud_DrawIbarWeapons (vector pos, vector virtsize) // if it works it works
-{
-	vector pos1 = pos + '0 -32 0';
-	if ((sitems & IT_HANDGR) 
-		&& getstatf(STAT_ROCKETS) > 1)	Hud_DrawWeapon(10, pos1 + '0 -24 0', "gfx/inv_");
-	if (sitems & IT_AXE)				Hud_DrawWeapon(0, pos1, "gfx/inv_");
-	if (sitems & IT_SHOTGUN)			Hud_DrawWeapon(1, pos1 + '24 0 0', "gfx/inv_");
-	if (sitems & IT_SUPER_SHOTGUN)		Hud_DrawWeapon(2, pos1 + '48 0 0', "gfx/inv_");
-	if (sitems & IT_NAILGUN)			Hud_DrawWeapon(3, pos1 + '72 0 0', "gfx/inv_");
-	if (sitems & IT_SUPER_NAILGUN)		Hud_DrawWeapon(4, pos1 + '96 0 0', "gfx/inv_");
-	if (sitems & IT_GRENADE_LAUNCHER)		Hud_DrawWeapon(5, pos1 + '120 0 0', "gfx/inv_");
-	if (sitems & IT_ROCKET_LAUNCHER)		Hud_DrawWeapon(6, pos1 + '144 0 0', "gfx/inv_");
-	if (sitems & IT_LIGHTNING)			Hud_DrawWeapon(7, pos1 + '168 0 0', "gfx/inv_");
-	if (sitems2 & IT2_RAILGUN)			Hud_DrawWeapon(8, pos1 + '192 0 0', "gfx/inv_");
-	if (sitems & IT_BFG)				Hud_DrawWeapon(9, pos1 + '216 0 0', "gfx/inv_");
-	
-	if (sweapon == IT_HANDGR)			Hud_DrawWeapon(10, pos1 + '0 -24 0', "gfx/inv2_");
-	if (sweapon == IT_AXE)				Hud_DrawWeapon(0, pos1, "gfx/inv2_");
-	if (sweapon == IT_SHOTGUN)			Hud_DrawWeapon(1, pos1 + '24 0 0', "gfx/inv2_");
-	if (sweapon == IT_SUPER_SHOTGUN)		Hud_DrawWeapon(2, pos1 + '48 0 0', "gfx/inv2_");
-	if (sweapon == IT_NAILGUN)			Hud_DrawWeapon(3, pos1 + '72 0 0', "gfx/inv2_");
-	if (sweapon == IT_SUPER_NAILGUN)		Hud_DrawWeapon(4, pos1 + '96 0 0', "gfx/inv2_");
-	if (sweapon == IT_GRENADE_LAUNCHER)		Hud_DrawWeapon(5, pos1 + '120 0 0', "gfx/inv2_");
-	if (sweapon == IT_ROCKET_LAUNCHER)		Hud_DrawWeapon(6, pos1 + '144 0 0', "gfx/inv2_");
-	if (sweapon == IT_LIGHTNING)			Hud_DrawWeapon(7, pos1 + '168 0 0', "gfx/inv2_");
-	if (sweapon == 1<<23)				Hud_DrawWeapon(8, pos1 + '192 0 0', "gfx/inv2_");
-	if (sweapon == IT_BFG)				Hud_DrawWeapon(9, pos1 + '216 0 0', "gfx/inv2_");
-	
-	if ((sitems & IT_GRENADE_LAUNCHER) 
-			&& (sitems & IT_HANDGR) && getstatf(STAT_ROCKETS) < 1)	Hud_DrawWeapon(10, pos1 + '0 -24 0', "gfx/inv3_");
-	if ((sitems & IT_SHOTGUN) && getstatf(STAT_SHELLS) < 1) 			Hud_DrawWeapon(1, pos1 + '24 0 0', "gfx/inv3_");
-	if ((sitems & IT_SUPER_SHOTGUN) && getstatf(STAT_SHELLS) < 2)		Hud_DrawWeapon(2, pos1 + '48 0 0', "gfx/inv3_");
-	if ((sitems & IT_NAILGUN) && getstatf(STAT_NAILS) < 1)			Hud_DrawWeapon(3, pos1 + '72 0 0', "gfx/inv3_");
-	if ((sitems & IT_SUPER_NAILGUN) && getstatf(STAT_NAILS) < 2)		Hud_DrawWeapon(4, pos1 + '96 0 0', "gfx/inv3_");
-	if ((sitems & IT_GRENADE_LAUNCHER) && getstatf(STAT_ROCKETS) < 1)		Hud_DrawWeapon(5, pos1 + '120 0 0', "gfx/inv3_");
-	if ((sitems & IT_ROCKET_LAUNCHER) && getstatf(STAT_ROCKETS) < 1)		Hud_DrawWeapon(6, pos1 + '144 0 0', "gfx/inv3_");
-	if ((sitems & IT_LIGHTNING) && getstatf(STAT_CELLS) < 1)			Hud_DrawWeapon(7, pos1 + '168 0 0', "gfx/inv3_");
-	if ((sitems2 & IT2_RAILGUN) && getstatf(STAT_NAILS) < 3)			Hud_DrawWeapon(8, pos1 + '192 0 0', "gfx/inv3_");
-	if ((sitems & IT_BFG) && getstatf(STAT_CELLS) < 50)				Hud_DrawWeapon(9, pos1 + '216 0 0', "gfx/inv3_");
-	
-};
-
-static void Hud_DrawIbarItems (vector pos, vector virtsize)
-{
 	if (sitems2 & IT2_RUNE1)
-		drawpic(pos+'288 0 0', "gfx/sb_sigil1", '8 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'288 8 0', "gfx/sb_sigil1", '8 16 0', '1 1 1', 1, 0);
 	if (sitems2 & IT2_RUNE2)
-		drawpic(pos+'296 0 0', "gfx/sb_sigil2", '8 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'296 8 0', "gfx/sb_sigil2", '8 16 0', '1 1 1', 1, 0);
 	if (sitems2 & IT2_RUNE3)
-		drawpic(pos+'304 0 0', "gfx/sb_sigil3", '8 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'304 8 0', "gfx/sb_sigil3", '8 16 0', '1 1 1', 1, 0);
 	if (sitems2 & IT2_RUNE4)
-		drawpic(pos+'312 0 0', "gfx/sb_sigil4", '8 16 0', '1 1 1', 1, 0);
+		drawpic(pos+'312 8 0', "gfx/sb_sigil4", '8 16 0', '1 1 1', 1, 0);
+
+	if (deathmatch)
+	{	//should probably show team scores, but this mimics vanilla
+		pos_x += 194;
+		for (float i = -1; i >= -4; i--)
+		{
+			string frags = getplayerkeyvalue(i, "frags");
+			if not (frags)
+				break;
+			vector top = stov(getplayerkeyvalue(i, "topcolor_rgb"));
+			vector bot = stov(getplayerkeyvalue(i, "bottomcolor_rgb"));
+			drawfill(pos+[0,1], [28,3], top, 0.75, 0);
+			drawfill(pos+[0,4], [28,4], bot, 0.75, 0);
+			drawstring(pos+[2,0], strpad(-3, frags), [8,8], [1,1,1],1,0);
+			if (player_localentnum == stof(getplayerkeyvalue(i, "viewentity")))
+			{
+				drawcharacter(pos+[-4,0], 0xe010, [8,8], [1,1,1],1, 0);
+				drawcharacter(pos+[24,0], 0xe011, [8,8], [1,1,1],1, 0);
+			}
+			pos_x += 8*4;
+		}
+	}
 };
 
 float numclientseats;
@@ -503,18 +536,27 @@ static void Hud_Draw(vector virtsize, float scoreboard)
 	if (shealth <= 0)
 		scoreboard = TRUE;
 
+	if (numclientseats <= 1)
+	{	//note that we only track one player's stats. with splitscreen we need to stop looking for changes otherwise we'd see them all the time.
+		if (ohealth && sitems != oitems)
+		{
+			for (float f = 0; f < 7; f++)
+			{
+				if ((sitems & (1<<f)) && !(oitems & (1<<f)))
+					flashtime[f] = time;
+			}
+		}
+	}
+
 	if (autocvar(viewsize, 100) < 120)
 	{
 		if (scoreboard)
-		{	
-			Hud_DrawIbarItems (pos - '0 48 0', virtsize);
-			Hud_DrawIbarWeapons (pos - '0 24 0', virtsize);
 			Hud_CoopScores_SBar(pos - '0 24 0');
-		}
 		else
 			Hud_DrawSBar(pos - '0 24 0', virtsize);
 
-		
+		//if (autocvar(viewsize, 100) < 110)
+		//	Hud_DrawIBar(pos - '0 48 0', virtsize);
 	}
 };
 
@@ -537,19 +579,3 @@ void(float apilevel, string enginename, float engineversion) CSQC_Init =
 {
 	Hud_Init();
 };
-
-float rand() =
-{
-	return random()*32767;
-};
-
-float() crand =
-{
-	return (rand()&32767)* (2.0/32767) - 1;
-};
-
-
-
-
-
-

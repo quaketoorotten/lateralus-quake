@@ -195,6 +195,8 @@ local float		rs;
 			sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
 		else
 			sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
+
+		self.pain_finished = time + 0.2;
 		return;
 	}
 
@@ -204,6 +206,8 @@ local float		rs;
 			sound (self, CHAN_VOICE, "player/lburn1.wav", 1, ATTN_NORM);
 		else
 			sound (self, CHAN_VOICE, "player/lburn2.wav", 1, ATTN_NORM);
+
+		self.pain_finished = time + 0.2;
 		return;
 	}
 
@@ -212,18 +216,7 @@ local float		rs;
 		self.axhitme = 0;
 		return;
 	}
-	self.pain_finished = time + 0.5;
-
-// don't make multiple pain sounds right after each other
-
-// ax pain sound
-	if (self.axhitme == 1)
-	{
-		self.axhitme = 0;
-		sound (self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
-		return;
-	}
-	
+	self.pain_finished = time + 0.22;
 
 	rs = rint((random() * 5) + 1);
 
@@ -463,6 +456,8 @@ void() PlayerDie =
 	if (deathmatch || coop)
 		DropBackpack();
 	
+	sound(self, CHAN_RELOAD, "misc/null.wav", 1, ATTN_NORM);
+	sound(self, CHAN_WEAPON, "misc/null.wav", 1, ATTN_NORM);
 	self.weaponmodel="";
 	self.view_ofs = '0 0 -8';
 	self.deadflag = DEAD_DYING;
@@ -530,4 +525,5 @@ void()	player_diec5	=	[	194,	player_diec6	] {};
 void()	player_diec6	=	[	195,	player_diec7	] {};
 void()	player_diec7	=	[	196,	player_diec8	] {};
 void()	player_diec8	=	[	197,	player_diec8	] {PlayerDead();};
+
 
