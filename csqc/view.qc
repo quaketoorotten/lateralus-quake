@@ -489,6 +489,8 @@ void() idPlayer_BobCycle =
 //	V_GunModel
 //==============================================
 
+float	IT_INVISIBILITY			= 1<<19;
+
 void() V_GunModel =
 {
 	if ( viewmodel ) {
@@ -596,6 +598,18 @@ void() V_CalcRefDef =
 	idPlayer_BobCycle();
 
 	idPlayer_CalculateViewWeaponPos();
+
+	float spowerups = getstatbits(37, 0, 23);
+	if (spowerups & IT_INVISIBILITY) // check invis powerup
+	{	
+		viewmodel.colormod = '2 4 1';
+		viewmodel.alpha = 0.4;
+	}
+	else
+	{	
+		viewmodel.colormod = '0 0 0';
+		viewmodel.alpha = 1;
+	}
 	
 	//========================================================
 	
@@ -618,6 +632,8 @@ void() V_Init =
 	setmodel( viewmodel, "" );
 	setorigin( viewmodel, '0 0 0' );
 	viewmodel.angles = '0 0 0';
+	viewmodel.alpha = 1;
+	viewmodel.colormod = '0 0 0';
 	
 	currentLoggedAccel = 0;
 	framenum = 0;

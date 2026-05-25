@@ -42,6 +42,7 @@ float	IT_BFG				= 1<<8;
 float	IT_CHAINSAW				= 1<<9;
 float	IT_DOUBLEBARREL			= 1<<10;
 float	IT_GRABBER				= 1<<11;
+float	IT_ARTIFACT				= 1<<12;
 
 float	IT_ARMOR1				= 1<<13;
 float	IT_ARMOR2				= 1<<14;
@@ -271,8 +272,7 @@ static void(float type, vector pos) Hud_DrawAmmoCount =
 	float len;
 	float c;
 	value = getstatf(STAT_SHELLS+type);
-	if (value < 0)
-		value = 0;	//hrm
+
 	if (value>999)
 		value = 999;
 	
@@ -309,9 +309,34 @@ static void(vector pos, float value) Hud_DrawNums =
 	{
 		len--;
 		c = str2chr(s, len);
-		drawcharacter(pos+len * '8 0 0', (18-'0') + c, '8 8 0', '1 1 1', 1, 0);
+		drawcharacter(pos+len * '8 0 0',(18-'0') + c, '8 8 0', '1 1 1', 1, 0);
 	}
 };
+
+static void(vector pos, float value) Hud_DrawNumsBlue =
+{
+	string s;
+	float len;
+	float c;
+	//value = getstatf(STAT_AMMO);
+	if (value < 0)
+		value = 0;	//hrm
+	if (value>999)
+		value = 999;
+	
+	//print(ftos(value));
+	s = ftos(floor(value));
+	len = strlen(s);
+	
+	pos_x += 5 * (3-len);
+	while(len>0)
+	{
+		len--;
+		c = str2chr(s, len);
+		drawcharacter(pos+len * '8 0 0',(146-'0') + c, '8 8 0', '1 1 1', 1, 0);
+	}
+};
+
 
 static void(float num, vector pos) Hud_DrawWeapon =
 {
@@ -408,7 +433,7 @@ static void(vector pos) Hud_CoopScores_SBar =
 		drawstring(sbar + '8 48', "                9", '8 8 0', '1 1 1', 1, 0);
 	
 	if (sitems & IT_CHAINSAW)
-		drawstring(sbar + '8 56', "0", '8 8 0', '1 1 1', 1, 0);
+		drawstring(sbar + '8 56', "1", '8 8 0', '1 1 1', 1, 0);
 	if (sitems & IT_DOUBLEBARREL)
 		drawstring(sbar + '8 56', "    3", '8 8 0', '1 1 1', 1, 0);
 	if (sitems & IT_GRABBER)
@@ -538,14 +563,17 @@ static void Hud_DrawSBar(vector virtsize)
 	float helth_mega = 0 + (87  * (selfhealth2/100));
 	healthsize_x = helth_mega;
 	drawpic(pos+[70, 6, 0], "gfx/stat2_h1", healthsize, '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
-
-	Hud_DrawNums( pos+[128, 6, 0], shealth);
+	
+	if(shealth > 150)
+		Hud_DrawNumsBlue ( pos+[128, 6, 0], shealth);
+	else
+		Hud_DrawNums( pos+[128, 6, 0], shealth);
 
 	float armo = 0 + (99  * (getstatf(STAT_ARMOR)/200));
 	armorsize_x = armo;
 	drawpic(pos+[63, 21, 0], "gfx/stat2_a", armorsize, '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
 
-	Hud_DrawNums( pos+[136, 22, 0], getstatf(STAT_ARMOR));
+	Hud_DrawNums( pos+[136, 24, 0], getstatf(STAT_ARMOR));
 
 	if (autocvar(cl_sbar, 1))
 		drawpic(pos, "gfx/stat3", '166 35 0', '1 1 1', autocvar(scr_sbaralpha, 0.75), 0);
@@ -553,11 +581,16 @@ static void Hud_DrawSBar(vector virtsize)
 	float weapontype = Return_AmmoType();
 //	string ammotype = "gfx/stat4_";
 	
-	if (sweapon != IT_FIST && sweapon != IT_CHAINSAW && sweapon != IT_GRABBER)
+	if (sweapon != IT_FIST && sweapon != IT_CHAINSAW && sweapon != IT_GRABBER && sweapon != IT_ARTIFACT)
 	{	
 		drawpic(pos, "gfx/stat4", '166 35 0', '1 1 1', 1, 0);
-		Hud_DrawNums( pos+[22, 8, 0], getstatf(STAT_AMMO));
-		Hud_DrawAmmoCount(weapontype, pos+[14, 19, 0]);
+
+		if (sweapon != IT_GRENADE)
+			Hud_DrawNums( pos+[22, 10, 0], getstatf(STAT_AMMO));
+		else
+			Hud_DrawAmmoCount(weapontype, pos+[22, 10, 0]);
+
+		Hud_DrawAmmoCount(weapontype, pos+[14, 21, 0]);
 		
 		drawpic(pos, ammotypes[weapontype], '166 35 0', '1 1 1', 1, 0);
 	}
@@ -602,6 +635,10 @@ void Hud_Draw(vector virtsize, float scoreboard)
 	if (shealth <= 0)
 		return;
 
+	float spowerups = getstatbits(37, 0, 23);
+	if (spowerups & IT_QUAD)
+		drawfill('0 0 0', virtsize, '1 0 0', 0.3);
+
 	if (numclientseats <= 1)
 	{	//note that we only track one player's stats. with splitscreen we need to stop looking for changes otherwise we'd see them all the time.
 		if (ohealth && sitems != oitems)
@@ -619,7 +656,7 @@ void Hud_Draw(vector virtsize, float scoreboard)
 		if (scoreboard)
 		{	
 			pos_x = (virtsize_x-150);
-			pos_y = pos_y - 240;
+			pos_y = pos_y - 235;
 			Hud_CoopScores_SBar(pos);
 		}
 		Hud_DrawSBar(virtsize);
