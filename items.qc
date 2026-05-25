@@ -107,13 +107,13 @@ float (entity e, float healamount, float ignore) T_Heal =
 {
 	if (e.health <= 0)
 		return 0;
-	if ((!ignore) && (e.health >= other.max_health))
+	if ((!ignore) && (e.health >= e.max_health))
 		return 0;
 	healamount = ceil(healamount);
 
 	e.health = e.health + healamount;
-	if ((!ignore) && (e.health >= other.max_health))
-		e.health = other.max_health;
+	if ((!ignore) && (e.health >= e.max_health))
+		e.health = e.max_health;
 		
 	if (e.health > 200)
 		e.health = 200;
@@ -137,7 +137,7 @@ void() item_megahealth_rot;
 void() item_precaches = 
 {
 	precache_model("progs/b_bh10.md3");
-	precache_model("maps/b_bh100.bsp");
+	precache_model("progs/megahealth.md3");
 	precache_model("progs/b_bh25.md3");
 
 	precache_sound("items/r_item1.wav");	
@@ -176,7 +176,7 @@ void() item_precaches =
 	precache_sound ("misc/runekey.wav");
 	precache_sound2 ("misc/basekey.wav");
 
-	precache_model ("progs/invulner.mdl");
+	precache_model ("progs/g_artifact.md3");
 	precache_sound ("items/protect.wav");
 	precache_sound ("items/protect2.wav");
 	precache_sound ("items/protect3.wav");
@@ -185,15 +185,18 @@ void() item_precaches =
 	precache_sound ("items/suit.wav");
 	precache_sound ("items/suit2.wav");
 
-	precache_model ("progs/invisibl.mdl");
+	precache_model ("progs/invisibl.md3");
 	precache_sound ("items/inv1.wav");
 	precache_sound ("items/inv2.wav");
 	precache_sound ("items/inv3.wav");
 
 	precache_model ("progs/quaddama.mdl");
-	precache_sound ("items/damage.wav");
-	precache_sound ("items/damage2.wav");
+	precache_sound ("items/berserker_pickup.wav");
+	precache_sound ("items/3rd_person_berserk.wav");
 	precache_sound ("items/damage3.wav");
+	precache_sound ("items/damage2.wav");
+
+	precache_sound ("items/megasphere_pickup.wav");
 }
 
 
@@ -207,14 +210,22 @@ void() item_health =
 		self.noise = "items/r_item1.wav";
 		self.healamount = 15;
 		self.healtype = 0;
+		setsize (self, '0 0 0', '32 32 56');
 	}
 	else
 	if (self.spawnflags & H_MEGA)
 	{
-		setmodel(self, "maps/b_bh100.bsp");
-		self.noise = "items/r_item2.wav";
+		setmodel(self, "progs/megahealth.md3");
+		self.noise = "items/megasphere_pickup.wav";
 		self.healamount = 100;
 		self.healtype = 2;
+		self.modelflags |= MF_ROTATE;
+		self.alpha = 0.9;
+		self.effects |= EF_ADDITIVE;
+		self.emiteffectnum = (particleeffectnum("TE_MEGAHEALTH_FLAME"));
+		self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
+		setsize (self, '-16 -16 0', '16 16 56');
+		setorigin (self, self.origin + '16 16 0');
 	}
 	else
 	{
@@ -222,8 +233,9 @@ void() item_health =
 		self.noise = "items/health1.wav";
 		self.healamount = 25;
 		self.healtype = 1;
+		setsize (self, '0 0 0', '32 32 56');
 	}
-	setsize (self, '0 0 0', '32 32 56');
+	
 	StartItem ();
 };
 
@@ -261,6 +273,7 @@ void() health_touch =
 	
 	self.model = string_null;
 	self.solid = SOLID_NOT;
+	self.emiteffectnum = 0;
 
 	// Megahealth = rot down the player's super health
 	if (self.healtype == 2)
@@ -469,6 +482,9 @@ void(float oldid, float newid) Deathmatch_Weapon =
 {
 	local float or, nr;
 
+	if (self.super_damage_finished)
+		return;
+
 // change self.weapon if desired
 	or = RankForWeapon (oldid);
 	nr = RankForWeapon (newid);
@@ -482,6 +498,9 @@ void(float oldid, float newid) Deathmatch_Weapon =
 
 void(float old, float new, float newid) SinglePlayer_Weapon =
 {
+	if (self.super_damage_finished)
+		return;
+
 	if ((old & new)) // already have this weapon
 		return;
 
@@ -554,7 +573,7 @@ void() weapon_touch =
 	stemp = self;
 	self = other;
 
-	if (self.weapon != new && self.weaponstate != WEAPON_RELOAD && !self.button3 && !self.grabbed_proj)	
+	if (self.weapon != new && self.weaponid != newid)	
 	{	
 		if (!deathmatch)
 			SinglePlayer_Weapon (old, new, newid);
@@ -600,7 +619,7 @@ void() weapon_shotgun =
 
 
 void() weapon_supershotgun =
-{
+{	
 	setmodel (self, "progs/g_shotg2.mdl");
 	self.netname = "the Shotgun";
 	self.netname2 = "some shells";
@@ -654,12 +673,14 @@ void() weapon_supernailgun =
 void() weapon_grenadelauncher =
 {	
 	if (random() > 0.2)
-		weapon_grenadelauncher1 ();
-	else
-		weapon_grenadelauncher2 ();
+		weapon_chainsaw ();
+	else if(world.model != "maps/e1m3.bsp")
+		weapon_widowmaker ();
+	else	
+		weapon_chainsaw ();
 };
 
-void() weapon_grenadelauncher1 =
+void() weapon_chainsaw =
 {	
 	setmodel (self, "progs/g_rail.mdl");
 	self.netname = "the Chainsaw";
@@ -673,7 +694,7 @@ void() weapon_grenadelauncher1 =
 	StartItem ();
 };
 
-void() weapon_grenadelauncher2 =
+void() weapon_widowmaker =
 {
 	setmodel (self, "progs/g_widowmaker.mdl");
 	self.netname = "the Double-barreled Shotgun";
@@ -784,9 +805,25 @@ local float		best;
 
 //	rockets
 	if (self.weapon == 3)
-	{
+	{	
+		stemp = self;
+		self = other;
+		float old = self.items;
+
+		self.items |= IT_GRENADE;
+		if (self.weapon != IT_GRENADE && self.weaponid != 6)	
+		{	
+			if (!deathmatch)
+				SinglePlayer_Weapon (old, IT_GRENADE, 6);
+			else
+				Deathmatch_Weapon (self.oldweaponid, 6);
+		}
+	
+		self = stemp;
+
 		if (other.ammo_rockets >= MAX_ROCKETS)
 			return;
+
 		other.ammo_rockets = other.ammo_rockets + self.aflag;
 	}
 
@@ -806,12 +843,6 @@ local float		best;
 // ammo touch sound
 	sound (other, CHAN_ITEM, "weapons/lock4.wav", 1, ATTN_NORM);
 	stuffcmd (other, "bf\n");
-
-// if changed current ammo, update it
-	stemp = self;
-	self = other;
-	W_SetCurrentAmmo(TRUE);
-	self = stemp;
 
 // remove it in single player, or setup for respawning in deathmatch
 	self.model = string_null;
@@ -1138,15 +1169,11 @@ void() powerup_touch =
 	if (other.health <= 0)
 		return;
 
-	sprint (other, "You got the ");
-	sprint (other, self.netname);
-	sprint (other,"\n");
-
 	if (deathmatch)
 	{
 		self.mdl = self.model;
 		
-		if ((self.classname == "item_artifact_invulnerability") ||
+		if ((self.classname == "item_artifact_super_damage") ||
 			(self.classname == "item_artifact_invisibility"))
 			self.nextthink = time + 60*5;
 		else
@@ -1155,11 +1182,30 @@ void() powerup_touch =
 		self.think = SUB_regen;
 	}	
 
+	
+	if (self.classname == "item_artifact_invulnerability")
+	{
+		if (other.items & self.items)
+			return;
+
+		other.items |= self.items;
+		other.newweaponid = 13;
+		other.oldweaponid = other.weaponid;
+		other.weaponstate = WEAPON_DEACTIVATE;
+	}
+	else
+		other.powerups |= self.items;
+		
+	sprint (other, "You got the ");
+	sprint (other, self.netname);
+	sprint (other,"\n");
+
 	sound (other, CHAN_VOICE, self.noise, 1, ATTN_NORM);
 	stuffcmd (other, "bf\n");
 	self.solid = SOLID_NOT;
-	other.items = other.items | self.items;
+
 	self.model = string_null;
+	self.emiteffectnum = 0;
 
 // do the apropriate action
 	if (self.classname == "item_artifact_envirosuit")
@@ -1167,23 +1213,24 @@ void() powerup_touch =
 		other.rad_time = 1;
 		other.radsuit_finished = time + 30;
 	}
-	
-	if (self.classname == "item_artifact_invulnerability")
-	{
-		other.invincible_time = 1;
-		other.invincible_finished = time + 30;
-	}
-	
+
 	if (self.classname == "item_artifact_invisibility")
-	{
+	{		
 		other.invisible_time = 1;
 		other.invisible_finished = time + 30;
 	}
 
 	if (self.classname == "item_artifact_super_damage")
 	{
-		other.super_time = 1;
+		other.super_time = time + 1.5;
 		other.super_damage_finished = time + 30;
+
+		if (other.weaponid != 1)
+		{
+			other.newweaponid = 1;
+			other.oldweaponid = other.weaponid;
+			other.weaponstate = WEAPON_DEACTIVATE;
+		}
 	}	
 
 	activator = other;
@@ -1199,11 +1246,13 @@ void() item_artifact_invulnerability =
 {
 	self.touch = powerup_touch;
 
-	self.noise = "items/protect.wav";
-	setmodel (self, "progs/invulner.mdl");
-	self.netname = "Pentagram of Protection";
-	self.items = IT_INVULNERABILITY;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	self.noise = "weapons/soulcube/energize_01.wav";
+	setmodel (self, "progs/g_artifact.md3");
+	self.netname = "Artifact";
+	self.items = IT_ARTIFACT;
+	self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
+	setsize (self, '-16 -16 0', '16 16 64');
+	self.modelflags |= MF_ROTATE;
 	StartItem ();
 };
 
@@ -1219,6 +1268,7 @@ void() item_artifact_envirosuit =
 	self.netname = "Biosuit";
 	self.items = IT_SUIT;
 	setsize (self, '-16 -16 -24', '16 16 32');
+	
 	StartItem ();
 };
 
@@ -1231,10 +1281,15 @@ void() item_artifact_invisibility =
 	self.touch = powerup_touch;
 
 	self.noise = "items/inv1.wav";
-	setmodel (self, "progs/invisibl.mdl");
-	self.netname = "Ring of Shadows";
+	setmodel (self, "progs/invisibl.md3");
+	self.netname = "Partial Invisibility";
 	self.items = IT_INVISIBILITY;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	self.modelflags |= MF_ROTATE;
+	self.effects |= EF_ADDITIVE;
+	self.effects |= EF_FULLBRIGHT;
+	self.alpha = 0.9;
+	self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
+	setsize (self, '-16 -16 0', '16 16 64');
 	StartItem ();
 };
 
@@ -1246,11 +1301,13 @@ void() item_artifact_super_damage =
 {
 	self.touch = powerup_touch;
 
-	self.noise = "items/damage.wav";
+	self.noise = "items/berserker_pickup.wav";
 	setmodel (self, "progs/quaddama.mdl");
-	self.netname = "Quad Damage";
+	self.netname = "Berserker";
 	self.items = IT_QUAD;
-	setsize (self, '-16 -16 -24', '16 16 32');
+	self.emiteffectnum = (particleeffectnum("TE_BERSERK_FLAME"));
+	self.traileffectnum = (particleeffectnum("EF_POWERUP_LIGHT"));
+	setsize (self, '-16 -16 0', '16 16 64');
 	StartItem ();
 };
 

@@ -18,7 +18,7 @@ weapon_info_frames wf_empty = {};
 // weapon_info_frames foobar = { last_active, idle_first, idle_last, swap_first, swap_last, 
 //				reload_first, reload_last, frame_ins_ammo, reloadloop_1st, reload_loop_last, mag_size, capacity, fire_func, sound_func}
 
-weapon_info_frames getweaponframes[14] =
+weapon_info_frames getweaponframes[15] =
 {	
 	wf_empty,
 	wf_fist,
@@ -33,10 +33,11 @@ weapon_info_frames getweaponframes[14] =
 	wf_chainsaw,
 	wf_doublebarrel, // where are you oh  i figured
 	wf_grabber,
+	wf_artifact,
 	wf_empty
 };
 
-weapon_info_generic getweaponinfo[14] =
+weapon_info_generic getweaponinfo[15] =
 {	
 	w_empty,
 	w_fist,
@@ -51,10 +52,11 @@ weapon_info_generic getweaponinfo[14] =
 	w_chainsaw,
 	w_doublebarrel,
 	w_grabber,
+	w_artifact,
 	w_empty
 };
 
-weapon_info_ammo getweaponammo[14] =
+weapon_info_ammo getweaponammo[15] =
 {	
 	a_empty,
 	a_fist,
@@ -69,10 +71,11 @@ weapon_info_ammo getweaponammo[14] =
 	a_fist,
 	a_doublebarrel, 
 	a_fist,
+	a_fist,
 	a_empty
 };
 
-float getweaponbit[14] =
+float getweaponbit[15] =
 {	
 	0,
 	IT_FIST,
@@ -87,6 +90,7 @@ float getweaponbit[14] =
 	IT_CHAINSAW,
 	IT_DOUBLEBARREL, 
 	IT_GRABBER,
+	IT_ARTIFACT,
 	0
 };
 
@@ -113,13 +117,12 @@ void(float item) W_SetCurrentAmmo =
 
 	if (self.weaponid == self.oldweaponid || item == TRUE)
 	{	
-		currammo.assign_currentammo();
+		currammo.assign_currentammo();	
 		return;
 	}
 	
   	self.weapon = getweaponbit[self.weaponid];
 	self.weaponmodel = wep.vmodel;
-	
 	currammo.assign_currentammo();
 
 	player_get_gunmodel (wep.pmodel);
@@ -196,15 +199,15 @@ float() W_CheckNoAmmo =
 	weapon_info_generic wep = getweaponinfo [self.weaponid];
 	weapon_info_ammo wep_ammo = getweaponammo [self.weaponid];	
 	
-    	if (!wep_ammo.get_ammo() && !wep.condition())
-    	{
-        	return FALSE; // weapon doesn't need ammo
-    	}
+    if (!wep_ammo.get_ammo() && !wep.condition())
+    {
+        return FALSE; // weapon doesn't need ammo
+    }
 
-    	if (self.currentammo > 0)
-    	{
-        	return FALSE; // has at least one ammo
-    	}
+    if (self.currentammo > 0)
+    {
+        return FALSE; // has at least one ammo
+    }
 
 	if (wep_ammo.get_ammo() > 0 && self.currentammo < 1 && cvar("g_autoreload") == 1)
 	{		
@@ -235,18 +238,17 @@ void() W_ChangeWeapon =
 
     float id = self.impulse;
 
-	//if (id == 1 && self.weaponid == 1)
-	//	id = 12;
-
-	 if (id == 12 && self.weaponid == 12)
+	if (id == 13 && self.weaponid == 13)
 		id = self.oldweaponid;
 
     if (id == 3 && self.weaponid == 3)
 		id = 11;
-   // bprint(ftos(id), "\n");
 
     if (id == 3 && !(self.items & IT_SHOTGUN) && (self.items & IT_DOUBLEBARREL))
 		id = 11;
+
+	if (id == 1 && self.weaponid == 1)
+		id = 10;
 
     weapon_info_generic wepinfo = getweaponinfo[id];
 
@@ -280,7 +282,7 @@ void() W_ChangeWeapon =
 	if (self.weaponid == id)
 		return;
 	
-    	self.newweaponid = id;
+    self.newweaponid = id;
 	self.oldweaponid = self.weaponid;
 	self.weaponstate = WEAPON_DEACTIVATE;
 };
@@ -296,17 +298,17 @@ Go to the next weapon with ammo
 
 void() CycleWeaponCommand =
 {
-    	local float it, am;
+    local float it, am;
 
-    	it = self.items;
-    	self.impulse = 0;
+    it = self.items;
+    self.impulse = 0;
 	
 	float id = self.weaponid;
 	weapon_info_generic nextweapon = getweaponinfo[id];
 	float nextweapon_bit = getweaponbit[id];	
 
-    	while(1)
-    	{		
+    while(1)
+    {		
 	  	id++; 
 	  	if (id >= MAX_WEAPONS) // reset
 			id = 1; 
@@ -318,7 +320,7 @@ void() CycleWeaponCommand =
 
         	if ((it & nextweapon_bit) && !am)
             	break;
-    	}
+    }
 	
 	self.newweaponid = id;	
 	self.weaponstate = WEAPON_DEACTIVATE;
@@ -334,17 +336,17 @@ Go to the prev weapon with ammo
 */
 void() CycleWeaponReverseCommand =
 {
-    	local float it, am;
+    local float it, am;
 
-    	it = self.items;
-    	self.impulse = 0;
+    it = self.items;
+    self.impulse = 0;
 	
 	float id = self.weaponid;
 	weapon_info_generic nextweapon = getweaponinfo[id];
 	float nextweapon_bit = getweaponbit[id];
 
-    	while(1)
-    	{		  
+    while(1)
+    {		  
 	  	id--;	  
 	  	if (id <= 0) // reset
 			id = MAX_WEAPONS - 1; 
@@ -354,11 +356,11 @@ void() CycleWeaponReverseCommand =
 	  	am = nextweapon.condition();  
 		nextweapon_bit = getweaponbit[id];
 
-        	if ((it & nextweapon_bit) && !am)
-        		break;
-    	}
+        if ((it & nextweapon_bit) && !am)
+        	break;
+    }
 
-    	self.newweaponid = id;	
+    self.newweaponid = id;	
 	self.weaponstate = WEAPON_DEACTIVATE;
 	self.oldweaponid = self.weaponid;
 
@@ -392,7 +394,6 @@ void() W_WeaponThink =
 	}
 
 	W_WeaponGeneric ();
-	W_WeaponReload ();
 };
 
 float(float ammo) bfgcheckammo = 
@@ -635,26 +636,6 @@ void() W_WeaponReload =
 }
 
 /*
-========
-SuperDamageSound
-
-Plays sound if needed
-========
-*/
-void() SuperDamageSound =
-{
-    if (self.super_damage_finished > time)
-    {
-        if (self.super_sound < time)
-        {
-            self.super_sound = time + 1;
-            sound(self, CHAN_BODY, "items/damage3.wav", 1, ATTN_NORM);
-        }
-    }
-    return;
-};
-
-/*
 ============
 CheatCommand
 ============
@@ -734,9 +715,10 @@ void() QuadCheat =
         return;
     }
 
-    self.super_time = 1;
+    self.super_time = time;
     self.super_damage_finished = time + 30;
-    self.items = self.items | IT_QUAD;
+    self.powerups |= IT_QUAD;
+
     dprint("quad cheat\n");
 };
 
@@ -749,7 +731,7 @@ void() SuitCheat =
 
     self.rad_time = 1;
     self.radsuit_finished = time + 30;
-    self.items = self.items | IT_SUIT;
+    self.powerups |= IT_SUIT;
     dprint("suit cheat\n");
 };
 
@@ -762,7 +744,7 @@ void() InvisCheat =
 
     self.invisible_time = 1;
     self.invisible_finished = time + 30;
-    self.items = self.items | IT_INVISIBILITY;
+    self.powerups |= IT_INVISIBILITY;
     dprint("invis cheat\n");
 };
 
@@ -773,10 +755,10 @@ void() PentaCheat =
         return;
     }
 
-    self.invincible_time = 1;
-    self.invincible_finished = time + 30;
-    self.items = self.items | IT_INVULNERABILITY;
-    dprint("penta cheat\n");
+ //   self.invincible_time = 1;
+ //   self.invincible_finished = time + 30;
+    self.items |= IT_ARTIFACT;
+    dprint("artifact cheat\n");
 };
 
 void() AllPower =
@@ -786,7 +768,7 @@ void() AllPower =
         return;
     }
 
-      PentaCheat ();
+    PentaCheat ();
 	InvisCheat ();
 	SuitCheat ();
 	QuadCheat ();
@@ -848,6 +830,12 @@ void() ImpulseCommands =
 
 void() WeaponChange =
 {	
+	if (self.super_damage_finished)
+	{
+		self.impulse = 0;
+		return;
+	}
+
 	switch(self.impulse)
 	{
 		case 1:
@@ -862,6 +850,7 @@ void() WeaponChange =
 		case 10:
 		case 11:
 		case 12:
+		case 13:
 			W_ChangeWeapon();
 			break;
 		case 30:

@@ -2002,9 +2002,6 @@ void() func_rotate_door =
 	else if (self.dmg < 0 )
 		self.dmg = 0;
 
-	if (self.sounds == 0)
-		self.sounds = 1;
-
 	if (self.sounds == 1)
 	{
 		precache_sound ("doors/latch2.wav");

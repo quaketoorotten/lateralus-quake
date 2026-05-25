@@ -153,7 +153,7 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 // check for quad damage powerup on the attacker
 	if (attacker.super_damage_finished > time)
 	{
-		damage = damage * 4;
+		damage = damage * 51;
 		kick = kick * 4;
 	}
 
@@ -166,7 +166,12 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 		targ.armortype = 0;	// lost all armor
 		targ.items = targ.items - (targ.items & (IT_ARMOR1 | IT_ARMOR2 | IT_ARMOR3));
 	}
+
 	
+// check for godmode or invincibility
+	if (targ.flags & FL_GODMODE)
+		return;
+
 	targ.armorvalue = targ.armorvalue - save;
 	take = ceil(damage-save);
 
@@ -206,19 +211,6 @@ void(entity targ, entity inflictor, vector inflictor_org, entity attacker, float
 			}
 		}
 	}		
-
-// check for godmode or invincibility
-	if (targ.flags & FL_GODMODE)
-		return;
-	if (targ.invincible_finished >= time)
-	{
-		if (self.invincible_sound < time)
-		{
-			sound (targ, CHAN_ITEM, "items/protect3.wav", 1, ATTN_NORM);
-			self.invincible_sound = time + 2;
-		}
-		return;
-	}
 
 // team play damage avoidance
 	if ( (teamplay == 1) && (targ.team > 0)&&(targ.team == attacker.team) )

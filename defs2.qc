@@ -29,6 +29,8 @@
 
 .float megahealth_finished;
 .float megahealth_time;
+.float artifact_healfinished;
+.float artifact_healtime;
 
 .float mass;
 .float hitmarker_time;
@@ -98,15 +100,16 @@ float IT_ROCKET_LAUNCHER 		= 128;
 float IT_BFG					= 256;
 float IT_CHAINSAW				= 512;
 
-float	IT_DOUBLEBARREL			= 1024;
-float	IT_GRABBER				= 2048;
+float IT_DOUBLEBARREL			= 1024;
+float IT_GRABBER				= 2048;
+float IT_ARTIFACT				= 4096;
 
 float FL_MEDIC				= 8192;
 float FL_DODGED				= 16384;
 float FL_RESURRECTED			= 32768;
 float FL_LEAP				= 65536;
 
-float MAX_WEAPONS				= 13;
+float MAX_WEAPONS				= 14;
 
 .entity goonmaster;
 
@@ -159,3 +162,5 @@ int WEAPON_RELOAD = 5;
 .float oldweaponid;
 .float newweaponid;
 .float weaponid;
+
+.float powerups; // replace .items

@@ -257,7 +257,7 @@ void() point_action =
 	setsize (self,' -8 -8 -16', '8 8 16');
 };
 
-void() action_dummy =
+void() target_dummy =
 {
 	if (deathmatch)
 	{
@@ -265,7 +265,7 @@ void() action_dummy =
 		return;
 	}
 	
-	self.classname = "action_dummy";
+	self.classname = "target_dummy";
 	self.solid = SOLID_TRIGGER;
 
 	setsize (self,' -8 -8 -16', '8 8 16');

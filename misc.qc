@@ -287,7 +287,7 @@ void()	barrel_anim3 = [0, barrel_explode ] {};
 void() barrel_die = 
 {
 	// check for gib
-	if (self.health < -self.mass)
+	if (self.health < -40)
 	{
 		barrel_explode();
 		return;
@@ -296,7 +296,6 @@ void() barrel_die =
 	self.movetype = MOVETYPE_WALK;
 	self.velocity = normalize(self.origin - self.enemy.origin) * 200;
 	self.emiteffectnum = (particleeffectnum("TE_ARCHVILEFLAME"));
-	self.takedamage = DAMAGE_NO;
 	self.think = barrel_anim2;
 	self.nextthink = time + 0.5;
 	self.th_die = SUB_Null;
@@ -352,7 +351,7 @@ void() misc_explobox =
 	if (!self.health)
 		self.health = 10;
 	if (!self.dmg)
-		self.dmg = 150;
+		self.dmg = 165;
 
 	self.max_health = self.health;
 	self.th_die = barrel_die;

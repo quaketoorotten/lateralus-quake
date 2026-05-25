@@ -154,8 +154,11 @@ void() SetChangeParms =
 
 // remove items
 	self.items = self.items - (self.items & 
-	(IT_KEY1 | IT_KEY2 | IT_INVISIBILITY | IT_INVULNERABILITY | IT_SUIT | IT_QUAD) );
+	(IT_KEY1 | IT_KEY2 | IT_ARTIFACT) );
 	
+	self.powerups = self.powerups - (self.powerups & 
+	(IT_INVISIBILITY | IT_SUIT | IT_QUAD) );
+
 // cap super health
 	if (self.health > 100)
 		self.health = 100;
@@ -168,7 +171,12 @@ void() SetChangeParms =
 	parm5 = self.ammo_nails;
 	parm6 = self.ammo_rockets;
 	parm7 = self.ammo_cells;
-	parm8 = self.weaponid;
+
+	if (self.weaponid == 13)
+		parm8 = self.oldweaponid;
+	else
+		parm8 = self.weaponid;
+
 	parm9 = self.armortype * 100;
 	parm10 = self.armorbit;
 	parm11 = encode(self.savedammo_shells, self.savedammo_shells2, self.savedammo_nails);
@@ -178,7 +186,7 @@ void() SetChangeParms =
 
 void() SetNewParms =
 {
-	parm1 = IT_PISTOL | IT_FIST | IT_GRENADE | IT_GRABBER;
+	parm1 = IT_PISTOL | IT_FIST ;
 	parm2 = 100;
 	parm3 = 0;
 	parm4 = 25;
@@ -704,6 +712,8 @@ void() PutClientInServer =
 	self.attack_finished = time;
 	self.th_pain = player_pain;
 	self.th_die = PlayerDie;
+	self.oldfov = 0;
+	self.healamount = 0;
 	
 	self.deadflag = DEAD_NO;
 // paustime is set by teleporters to keep the player from moving a while
@@ -1097,6 +1107,7 @@ PlayerPreThink
 Called every frame before physics are run
 ================
 */
+
 void() PlayerPreThink =
 {
 //	local	float	mspeed, aspeed;
@@ -1170,6 +1181,43 @@ CheckPowerups
 Check for turning off powerups
 ================
 */
+
+.float oldfov;
+
+void() BerserkSpeedUp =
+{	
+	if (!self.movement) // no movement inputs
+		return;
+
+	// berserk runs faster
+	float maxspeed = cvar("sv_maxspeed");
+	float spd = maxspeed * 1.6;
+	vector fwd, r;
+	AngleVectors([0, self.v_angle[1], 0], fwd, r);
+	vector wish = fwd * self.movement[0] + r * self.movement[1];
+	wish = normalize(wish);
+
+	self.velocity[0] = wish[0] * spd;
+	self.velocity[1] = wish[1] * spd;
+}
+
+void() AdrenalineSpeedUp =
+{	
+	if (!self.movement) // no movement inputs
+		return;
+
+	// adrenaline runs faster
+	float maxspeed = cvar("sv_maxspeed");
+	float spd = maxspeed * 1.3;
+	vector fwd, r;
+	AngleVectors([0, self.v_angle[1], 0], fwd, r);
+	vector wish = fwd * self.movement[0] + r * self.movement[1];
+	wish = normalize(wish);
+
+	self.velocity[0] = wish[0] * spd;
+	self.velocity[1] = wish[1] * spd;
+}
+
 void() CheckPowerups =
 {
 	if (self.health <= 0)
@@ -1177,7 +1225,8 @@ void() CheckPowerups =
 
 // invisibility
 	if (self.invisible_finished)
-	{
+	{	
+		self.flags |= FL_NOTARGET;
 // sound and screen flash when items starts to run out
 		if (self.invisible_sound < time)
 		{
@@ -1190,7 +1239,7 @@ void() CheckPowerups =
 		{
 			if (self.invisible_time == 1)
 			{
-				sprint (self, "Ring of Shadows magic is fading\n");
+				sprint (self, "Partil Invisibility is fading\n");
 				stuffcmd (self, "bf\n");
 				sound (self, CHAN_AUTO, "items/inv2.wav", 1, ATTN_NORM);
 				self.invisible_time = time + 1;
@@ -1205,7 +1254,8 @@ void() CheckPowerups =
 
 		if (self.invisible_finished < time)
 		{	// just stopped
-			self.items = self.items - IT_INVISIBILITY;
+			self.powerups &= ~IT_INVISIBILITY;
+			self.flags &= ~FL_NOTARGET;
 			self.invisible_finished = 0;
 			self.invisible_time = 0;
 		}
@@ -1240,7 +1290,7 @@ void() CheckPowerups =
 		
 		if (self.invincible_finished < time)
 		{	// just stopped
-			self.items = self.items - IT_INVULNERABILITY;
+			self.powerups &= ~IT_INVULNERABILITY;
 			self.invincible_time = 0;
 			self.invincible_finished = 0;
 		}
@@ -1252,32 +1302,67 @@ void() CheckPowerups =
 
 // super damage
 	if (self.super_damage_finished)
-	{
+	{	
+		float fov = cvar("fov");
 
-// sound and screen flash when items starts to run out
-
-		if (self.super_damage_finished < time + 3)
+		if (self.oldfov == 0)
+			self.oldfov = fov;
+		
+		if (!cvar("scratch1"))
+			cvar_set ("scratch1", ftos(self.oldfov)); // remember old fov
+		
+		if (self.super_damage_finished > time + 3)
 		{
+			if (fov < self.oldfov + 30)
+				fov += 1;
+				
+			cvar_set ("fov", ftos(fov));
+			cvar_set ("cl_gun_fovscale", "1");
+		}
+		
+		self.flags |= FL_GODMODE;
+
+		if (self.super_time != 1 && self.super_time < time && self.super_damage_finished > time + 3)
+		{
+			sound (self, CHAN_FIVE, "items/3rd_person_berserk.wav", 1, ATTN_NORM);
+			self.super_time = 1;
+		}
+			
+		BerserkSpeedUp ();
+// sound and screen flash when items starts to run out
+		if (self.super_damage_finished < time + 3)
+		{	
 			if (self.super_time == 1)
 			{
-				sprint (self, "Quad Damage is wearing off\n");
+				sprint (self, "Berserker is wearing off\n");
 				stuffcmd (self, "bf\n");
-				sound (self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
+			//	sound (self, CHAN_AUTO, "items/damage2.wav", 1, ATTN_NORM);
 				self.super_time = time + 1;
 			}	  
 			
 			if (self.super_time < time)
-			{
+			{	
 				self.super_time = time + 1;
 				stuffcmd (self, "bf\n");
+
+				fov = cvar("fov");
+				fov -= 5; // decrease fov slowly
+
+				cvar_set ("fov", ftos(fov));
 			}
 		}
 
 		if (self.super_damage_finished < time)
 		{	// just stopped
-			self.items = self.items - IT_QUAD;
+			self.powerups &= ~IT_QUAD;
+			self.flags &= ~FL_GODMODE;
 			self.super_damage_finished = 0;
 			self.super_time = 0;
+
+			cvar_set ("fov", ftos(self.oldfov));
+			cvar_set ("cl_gun_fovscale", "0");
+			self.oldfov = 0;
+			sound (self, CHAN_FIVE, "misc/null.wav", 1, ATTN_NORM);
 		}
 		if (self.super_damage_finished > time)
 			self.effects = self.effects | EF_DIMLIGHT;
@@ -1287,7 +1372,7 @@ void() CheckPowerups =
 
 // suit	
 	if (self.radsuit_finished)
-	{
+	{	
 		self.air_finished = time + 12;		// don't drown
 
 // sound and screen flash when items starts to run out
@@ -1310,7 +1395,8 @@ void() CheckPowerups =
 
 		if (self.radsuit_finished < time)
 		{	// just stopped
-			self.items = self.items - IT_SUIT;
+			self.powerups &= ~IT_SUIT;
+		//	self.items &= ~IT_SUIT;
 			self.rad_time = 0;
 			self.radsuit_finished = 0;
 		}
@@ -1328,6 +1414,32 @@ void() CheckPowerups =
 		{
 			self.health = self.health - 1;
 			self.nextthink2 = time + 3;
+		}
+	}
+
+	if (self.artifact_healfinished)
+	{	
+		if (self.artifact_healtime < time && self.health < self.healamount)
+		{
+			self.health = self.health + 1;
+			self.artifact_healtime = time + 0.05;
+		}
+
+		if (self.health > self.healamount)
+			self.health = self.healamount;
+
+		if (self.health == self.healamount)
+		{	// just stopped
+
+			self.artifact_healfinished = 0;
+			self.artifact_healtime = 0;
+			self.healamount = 0;
+		}
+
+		if (self.nextthink2 < time && self.health < self.healamount) // heal sound
+		{	
+			self.nextthink2 = time + 0.2;
+			sound(self, CHAN_SIX, "weapons/soulcube/recharge.wav", 1, ATTN_IDLE);
 		}
 	}
 };
@@ -1382,6 +1494,7 @@ void() PlayerPostThink =
 	CheckPowerups ();
 
 	W_WeaponThink ();
+	W_WeaponReload ();
 };	
 
 

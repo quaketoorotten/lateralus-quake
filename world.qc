@@ -276,7 +276,6 @@ void() worldspawn =
 	precache_model ("progs/debris2.mdl");
 	precache_model ("progs/debris3.mdl");
 
-	precache_model ("progs/bfgsac.md3");
 	precache_model ("progs/bfgballblast.md3");
 
 	precache_model ("progs/pork1.mdl");
@@ -310,6 +309,8 @@ void() worldspawn =
 	precache_model ("progs/v_bfg.md3");
 	precache_model ("progs/v_handgr.md3");
 	precache_model ("progs/v_grav.md3");
+	precache_model ("progs/v_artifact.md3");
+	precache_model ("progs/artifact_mis.md3");
 
 	precache_model ("progs/male/w_blaster.mdl");
 	precache_model ("progs/male/w_shotgun.mdl");
@@ -401,6 +402,8 @@ void() worldspawn =
 	particleeffectnum("TE_BFGBALLSAC");
 	particleeffectnum("TE_PLASMA");
 	particleeffectnum("TE_GORESPRAY");
+	particleeffectnum("TE_BERSERK_FLAME");
+	particleeffectnum("TE_MGEAHEALTH_FLAME");
 	
 	particleeffectnum("EF_EXPLODLIGHT2");
 	particleeffectnum("EF_SUMMONLIGHT");
@@ -409,6 +412,7 @@ void() worldspawn =
 	particleeffectnum("TE_CYBIE_FIREBALL");
 	particleeffectnum("EF_MANC_FIRETRAIL");
 	particleeffectnum("EF_CYBIE_FIRETRAIL");
+	particleeffectnum("EF_POWERUP_LIGHT");
 	item_precaches ();
 	
 	clientstat(29, EV_FLOAT, velocity.x);
@@ -419,6 +423,11 @@ void() worldspawn =
 	clientstat(34, EV_FLOAT, hitmarker_time);
 	clientstat(35, EV_FLOAT, shake_interval);
 	clientstat(36, EV_FLOAT, shake_time);
+	clientstat(37, EV_FLOAT, powerups);
+
+		// reset fov incase for berserk
+	if (cvar("fov") != cvar("scratch1") && cvar("scratch1")) 
+		cvar_set ("fov", ftos(cvar("scratch1")));
 //
 // Setup light animation tables. 'a' is total darkness, 'z' is maxbright.
 //

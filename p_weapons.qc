@@ -92,7 +92,7 @@ float() PistolNoAmmo =
 	if (self.savedammo_shells2 > 0)	
         return FALSE;
 
-	if (self.ammo_shells > 1)
+	if (self.ammo_shells > 0)
 		return FALSE;
 
 	return TRUE;
@@ -133,7 +133,6 @@ void() W_FireShotgun =
     self.currentammo -= 1;
     dir = aim(self, 10000);
 
-      SuperDamageSound();
 	TE_GUNSMOKE (start + v_forward * 32 + '0 0 4');
     FireBullet (start,  dir, 0, 0, dmg, kick, TE_SPIKE);
 	
@@ -154,7 +153,7 @@ float() ShotgunNoAmmo =
 	if (self.savedammo_shells > 0)	
         return FALSE;
 
-	if (self.ammo_shells > 1)
+	if (self.ammo_shells > 0)
 		return FALSE;
 
 	return TRUE;
@@ -186,7 +185,7 @@ void() W_FireSuperShotgun =
 	else
 		    sound(self, CHAN_WEAPON, "weapons/shotgun/fire/sgfire_05.wav", 1, ATTN_NORM);
 
-  self.punchangle = setvector (-4, crandom() * 0.3, crandom() * 0.3);
+  	self.punchangle = setvector (-4, crandom() * 0.3, crandom() * 0.3);
 
 	offset = setvector (0, 4, self.view_ofs[2] - 8);
 	makevectors(self.v_angle);
@@ -195,7 +194,6 @@ void() W_FireSuperShotgun =
     self.currentammo -= 1;
     dir = aim(self, 10000);
 	
-      SuperDamageSound();
     FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD, SHOTGUN_VSPREAD, dmg, kick, TE_SPIKE);
 	
 	offset = setvector (0, 6, self.view_ofs[2] - 2);
@@ -215,11 +213,8 @@ float() DoubleBarrelNoAmmo =
 	if (self.savedammo_shellsDB > 0)	
         return FALSE;
 
-	if (self.ammo_shells > 2)
+	if (self.ammo_shells > 1)
 		return FALSE;
-
-	//if (self.savedammo_shells < 2)	
-    //      	return TRUE;
 
 	return TRUE;
 };
@@ -239,7 +234,7 @@ void() W_FireDoubleBarrel =
 
 	sound(self, CHAN_WEAPON, "weapons/ssg/fire_04.wav", 1, ATTN_NORM);
 
-  self.punchangle = setvector (-6, crandom() * 0.3, crandom() * 0.3);
+  	self.punchangle = setvector (-6, crandom() * 0.3, crandom() * 0.3);
 
 	offset = setvector (0, 4, self.view_ofs[2] - 8);
 	makevectors(self.v_angle);
@@ -248,8 +243,7 @@ void() W_FireDoubleBarrel =
     self.currentammo -= 2;
     dir = aim(self, 10000);
 	
-      SuperDamageSound();
-    	FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD*2, SHOTGUN_VSPREAD*1.3, dmg, kick, TE_SPIKE);
+    FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD*2, SHOTGUN_VSPREAD*1.3, dmg, kick, TE_SPIKE);
 	FirePallets (SHOTGUN_PELLETS, start,  dir, SHOTGUN_HSPREAD*2, SHOTGUN_VSPREAD*1.3, dmg, kick, TE_SPIKE);
 
 	offset = setvector (0, 6, self.view_ofs[2] - 2);
@@ -275,7 +269,7 @@ float() MachineGunNoAmmo =
 	if (self.savedammo_nails > 0)	
           	return FALSE;
 
-	if (self.ammo_nails > 1)
+	if (self.ammo_nails > 0)
 		return FALSE;
 
 	return TRUE;
@@ -283,7 +277,7 @@ float() MachineGunNoAmmo =
 
 void() W_FireMachineGun =
 {
-      local vector dir;
+    local vector dir;
 	local vector offset, start;
 
 	local float dmg = 14, kick = 2;
@@ -314,7 +308,6 @@ void() W_FireMachineGun =
     self.currentammo -= 1;
     dir = aim(self, 10000);
 	
-      SuperDamageSound();
 		TE_GUNSMOKE (start + v_forward * 32 + '0 0 4');
 
     FireBullet (start,  dir, MACHINEGUN_HSPREAD, MACHINEGUN_VSPREAD, dmg, kick, TE_SPIKE);
@@ -332,11 +325,10 @@ W_FireChaineGun
 */
 float() ChainGunNoAmmo = 
 {	
-	
 	if (self.savedammo_nails2 > 0)	
-        return FALSE;
+		return FALSE;
 
-	if (self.ammo_nails > 1)
+	if (self.ammo_nails > 0)
 		return FALSE;
 
 	return TRUE;
@@ -376,7 +368,6 @@ void() W_FireChainGun =
 	
 	self.effects = self.effects | EF_MUZZLEFLASH;
 	
-      SuperDamageSound();
 	TE_GUNSMOKE (start + v_forward * 32  + '0 0 4');
 
     FireBullet (start,  dir, CHAINGUN_HSPREAD, CHAINGUN_VSPREAD, dmg, kick, TE_SPIKE);
@@ -526,18 +517,13 @@ void() W_FireRocket =
 	CheckDodge(start, aim(self, 10000), 1000);
 
 	// sound(missile, CHAN_BODY, "weapons/rockfly.wav", 1, ATTN_IDLE);
-
-      SuperDamageSound();
-
-
 };
 
 //=============================================================================
 
 void() GrenadeExplode =
 {
-    T_RadiusDamage(self, self.owner,self.dmg, 180, world);
-	
+    T_RadiusDamage(self, self.owner, self.dmg, 180, world);
 	
 	rocketimpact  ();
 	
@@ -638,8 +624,6 @@ void() W_FireGrenade =
     setsize(missile, '0 0 0', '0 0 0');
     setorigin(missile, start);
 	CheckDodge(missile.origin, aim(self, 10000), 600);
-
-	 SuperDamageSound();
 };
 
 void(float speed, float timer, float bool) W_FireGrenade2 =
@@ -674,7 +658,7 @@ void(float speed, float timer, float bool) W_FireGrenade2 =
 
 	 
     missile.avelocity = '300 300 300';
-	missile.dmg = 150;
+	missile.dmg = 165;
 		
 	if (bool)
 		missile.dmg = 400;
@@ -691,15 +675,13 @@ void(float speed, float timer, float bool) W_FireGrenade2 =
     setmodel(missile, "progs/grenade.mdl");
     setsize(missile, '-1 -1 -1', '1 1 1');
     setorigin(missile, start);
-
-	SuperDamageSound();
 };
 
 float() RocketLauncherNoAmmo = 
 {	
 	if (self.savedammo_rockets > 0)	
         return FALSE;
-	if (self.ammo_rockets > 1)
+	if (self.ammo_rockets > 0)
 		return FALSE;
 
 	return TRUE;
@@ -707,7 +689,7 @@ float() RocketLauncherNoAmmo =
 
 float() GrenadeNoAmmo = 
 {	
-	if (self.ammo_rockets > 1)
+	if (self.ammo_rockets > 0)
 		return FALSE;
 
 	return TRUE;
@@ -719,7 +701,7 @@ float() PlasmaNoAmmo =
 	if (self.savedammo_cells > 0)	
         return FALSE;
 
-	if (self.ammo_cells > 1)
+	if (self.ammo_cells > 0)
 		return FALSE;
 
 	return TRUE;
@@ -753,7 +735,6 @@ void() W_FireHyper =
 	
 	makevectors(self.v_angle);
 	LaunchLaser (start, dir, v_right * (crandom() * 15), v_up * (crandom() * 15));
-      SuperDamageSound();
 
 	if (self.flags & FL_CLIENT)
 		CheckDodge(start, dir, 3000);
@@ -775,8 +756,6 @@ void() W_FireDisint =
 
 	if (self.flags & FL_CLIENT)
 		CheckDodge(start, dir, 3000);
-
-	SuperDamageSound();
 };
 
 /*
@@ -796,7 +775,12 @@ void(void() sfx1, void() sfx2) W_FireAxe =
 	makevectors (self.v_angle);
 	source = self.origin + '0 0 16';
 	local vector vel, dir;
-	dir = source + v_forward*64;
+	float dist = 48;
+
+	if (self.powerups & IT_QUAD)
+		dist = 64;
+
+	dir = source + v_forward*dist;
 	traceline (source, dir, 0, self);
 
 	if (trace_fraction == 1.0)
@@ -994,6 +978,7 @@ void() player_handgr = [self.frame, player_handgr]
 			W_FireGrenade2(0, 0, FALSE);
 			player_run ();    
 			self.weaponframe = 155;
+			self.weaponstate = WEAPON_IDLE;
 			return;
 		}
 		
@@ -1012,7 +997,7 @@ void() player_handgr = [self.frame, player_handgr]
 		timer = self.grenade_time - time;
 		speed = GRENADE_MINSPEED + (GRENADE_TIMER - timer) * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER);
 	
-     	  	 W_FireGrenade2(speed, timer,  FALSE);
+     	W_FireGrenade2(speed, timer,  FALSE);
 
 		// bprint (ftos(speed), "\n");
 
@@ -1431,7 +1416,7 @@ void() player_chain = [self.frame, player_chain]
 };
 
 weapon_info_frames wf_chaingun = {14, '52 101 0', '152 157 0', '102 151 110', '104 151 0', CG_AMMO_CAP, CG_AMMO_CAP, player_chain, W_WeaponChainGunNoise};
-weapon_info_generic w_chaingun = { "progs/v_chain.md3", "progs/male/w_chaingun.mdl", MachineGunNoAmmo};
+weapon_info_generic w_chaingun = { "progs/v_chain.md3", "progs/male/w_chaingun.mdl", ChainGunNoAmmo};
 weapon_info_ammo a_chaingun = {SUB_Assign_Saved_Nails2, getnails, save_cgammo};
 
 /*
@@ -1604,7 +1589,6 @@ void(float level) W_FireBFG =
 	dmg_rad = 400 * (level / 3);	
 
 	launch_thunderball(dir,start,dmg,dmg_lsr,dmg_rad);
-      SuperDamageSound();
 };
 
 void() W_WeaponBFGNoise =
@@ -2213,3 +2197,252 @@ void() player_grab = [self.frame, player_grab]
 
 weapon_info_frames wf_grabber = {12, '132 192 0', '193 198 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_grab, W_WeaponGrabberNoise};
 weapon_info_generic w_grabber = { "progs/v_grav.md3", "progs/male/w_railgun.mdl", AmmoLessCheck};
+
+//=============================================
+
+/*
+============
+artifact
+============
+*/
+
+entity() ArtifactAim =
+{
+	local	vector	source;
+
+	source = self.origin + '0 0 16';
+	local vector dir;
+
+	dir = source + aim(self,10000)*8192;
+	traceline (source, dir, FALSE, self);
+
+	if (trace_fraction == 1.0)
+		return world;
+
+	if (trace_ent.flags & FL_MONSTER && trace_ent.takedamage && trace_ent.health > 0)
+		return trace_ent;
+	
+	return world;	
+}
+
+
+static float (float diff) get_diff =
+{
+	if ( diff > 180 ) 
+		diff = 180;
+	else if ( diff < -180 ) 
+		diff = -180;
+	return diff;
+}
+
+void() Artifact_Home = // im just gonna reuse this
+{
+	vector	dir, seekPos;
+	vector  dirAng, nose;
+	float frac;
+	vector diff;
+	float i = 0;
+
+	nose = self.origin;
+	seekPos = self.enemy.origin + (self.enemy.mins + self.enemy.maxs)*0.5;
+
+	dir = seekPos - nose;
+
+	if (vlen (nose - seekPos) < 16)
+		self.movetype = MOVETYPE_FLY;
+
+	dirAng = vectoangles(normalize(dir));
+	dirAng [0] = -dirAng[0]; // im not sure why 
+
+	if ( self.ltime < time ) 
+	{
+		self.rndAng[ 0 ] = 15 * crandom();
+		self.rndAng[ 1 ] = 15 * crandom();
+		self.rndAng[ 2 ] = 15 * crandom();
+		self.ltime = time + 1.25;
+	}
+
+	// make it more accurate as it gets closer
+	frac = vlen(dir) / 256;
+	if ( frac > 1) 
+		frac = 1;
+
+	diff = dirAng - self.movedir + self.rndAng * frac;
+	diff = Normalize180(diff);
+
+	diff[0] = get_diff(diff[0]);
+	diff[1] = get_diff(diff[1]);
+	diff[2] = get_diff(diff[2]);
+
+	self.movedir += diff;
+
+	vector fwd;
+	AngleVectors(self.movedir, fwd);
+
+	self.velocity = fwd * 600;
+
+	self.nextthink = time;
+	self.think = Artifact_Home;	
+};
+
+static void(vector o, vector vel, float p) spawnbloodspray =
+{	
+	for(float i = 0; i<8;i++)
+		SpawnBlood (o, vel * (crandom()*1800), p);
+}
+
+void() Artifact_touch =
+{   
+	entity damaged = self.enemy;
+	entity own = self.owner;
+	vector oldorg = self.origin;
+
+	if (other != self.enemy)
+		return;
+
+	if (self.dmgtime > time)
+		return;
+
+	if (!own.artifact_healfinished && own.health < 125 && !own.megahealth_finished)
+	{		
+		float heal = 100;
+		if (damaged.health > 1000)
+			heal = 125;
+
+		own.artifact_healfinished = 1;
+		own.healamount = heal;
+		own.artifact_healtime = time;
+	}
+	
+	sound(self, CHAN_VOICE, "misc/null.wav", 1, ATTN_NORM);
+	sound(self, CHAN_BODY, "weapons/soulcube/soulcube_shred.wav", 1, ATTN_NORM);
+
+	//sound(own, CHAN_FIVE, "weapons/soulcube/recharge.wav", 1, ATTN_NONE);
+	pointparticles (particleeffectnum("TE_GORESPRAY"), damaged.origin + '0 0 24', '0 0 200', 6);
+
+	spawnbloodspray  (damaged.origin + '0 0 24', normalize(oldorg - damaged.origin), 1000);
+
+	self.dmgtime = time + 0.2;
+
+	if (self.dmg >= self.count)
+	{	
+		T_Damage (damaged, own, oldorg, own, 100, 0);
+
+		if (damaged.health <= 0 && damaged.health < 1000) // ensure gib
+		{	
+			T_Damage (damaged, own, oldorg, own, 9999, 0); 
+			remove(self);
+			return;
+		}
+
+		self.count += 100;
+	}
+	else
+	{	
+		remove(self);
+	}
+};
+
+void(vector org, vector vec) LaunchArtifact =
+{
+	newmis = spawn();
+	newmis.owner = self;
+	newmis.movetype = MOVETYPE_NOCLIP;
+	newmis.solid = SOLID_BBOX;
+	newmis.effects = EF_DIMLIGHT;
+	newmis.dmgtime = 0;
+	newmis.classname = "artifact";
+	newmis.scale = 1.3;
+	newmis.count = 0;
+	newmis.dmg = 1000;
+	newmis.dmgtime = 0;
+
+	setmodel (newmis, "progs/artifact_mis.md3");
+	setsize (newmis, '-16 -16 -16', '16 16 16');		
+
+	setorigin (newmis, org);
+
+	newmis.velocity = normalize(vec) * 1800;
+	newmis.movedir = vectoangles(newmis.velocity);
+	newmis.avelocity = '300 300 300';
+
+	newmis.nextthink = time + 0.2;
+	newmis.think = Artifact_Home;
+	newmis.enemy = self.enemy;
+	self.enemy = world;
+	newmis.touch = Artifact_touch;
+	sound(newmis, CHAN_VOICE, "weapons/soulcube/fly_loop_01.wav", 1, ATTN_NORM);
+};
+
+.float animatereverse;
+
+void() player_useartifact =[self.frame, player_useartifact ]
+{	
+	self.weaponstate = WEAPON_USED;
+
+	if (self.weaponframe != 20 && self.weaponframe > 131)
+	{	
+		self.weaponframe = 20;
+		self.enemy = ArtifactAim();
+	}
+
+	if (!self.enemy && self.weaponframe == 26)
+		self.animatereverse = TRUE;
+	
+	if (self.animatereverse)
+	{	
+		if (self.weaponframe == 20)
+		{		
+			self.animatereverse = FALSE;
+			self.weaponstate = WEAPON_IDLE;
+			self.weaponframe = 132;
+			player_run();
+			return;
+		}
+
+		self.weaponframe--;
+		self.nextthink = time + 0.03;
+		return;
+	}
+
+	if (self.weaponframe == 44)
+	{	
+		LaunchArtifact (self.origin, aim(self,10000));
+		self.items &= ~IT_ARTIFACT;
+		self.weaponid = self.oldweaponid;
+		self.oldweaponid = 0;
+		player_run();
+		W_SetCurrentAmmo (FALSE);
+		return;
+    }
+
+	self.weaponframe++;
+	self.nextthink = time + 0.03;
+
+	W_WeaponArtifactNoise ();
+};
+
+void() W_WeaponArtifactNoise =
+{
+	if (self.weaponframe == 0)
+	{
+		if (random() <= 0.5)
+			sound(self, CHAN_RELOAD, "weapons/soulcube/raise_01.wav", 1, ATTN_NORM);
+		else	
+			sound(self, CHAN_RELOAD, "weapons/soulcube/raise_02.wav", 1, ATTN_NORM);
+	}
+		
+	if (self.weaponframe == 221)
+		sound(self, CHAN_RELOAD, "weapons/soulcube/putaway_01.wav", 1, ATTN_NORM);
+
+	if (self.weaponframe == 27)
+	{
+		if (random() <= 0.5)
+			sound(self, CHAN_RELOAD, "weapons/soulcube/fly_start_03.wav", 1, ATTN_NORM);
+		else	
+			sound(self, CHAN_RELOAD, "weapons/soulcube/fly_start_02.wav", 1, ATTN_NORM);
+	}
+};
+
+weapon_info_frames wf_artifact = {19, '132 220 0', '221 226 0', '0 0 0', '0 0 0', NO_AMMO, NO_AMMO, player_useartifact, W_WeaponArtifactNoise};
+weapon_info_generic w_artifact = { "progs/v_artifact.md3", "progs/male/w_railgun.mdl", AmmoLessCheck};

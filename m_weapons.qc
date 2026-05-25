@@ -117,7 +117,7 @@ float M_CalculatePitchToFire(vector targ, vector start,__out vector aim_, float 
 
     float sim_time = 0.1;
    	vector fwd, up, r;
-    vector pitched_aim = vectoanglesq2(aim_);
+    vector pitched_aim = vectoangles_(aim_);
     float grav = cvar("sv_gravity");	
 
     for (float i = 0; i < 9; i++)
@@ -295,3 +295,39 @@ void(vector org, vector dir, float damage, float timer, float right_adjust, floa
 	setorigin (missile, org);
 };
 
+static vector vectoangles_ (vector vec)
+{
+	float forward;
+	float yaw, pitch;
+
+	if (vec[1] == 0 && vec[0] == 0)
+	{
+		if (vec[2] > 0)
+			return '-90 0 0';
+		else
+			return  '-270 0 0';
+	}
+
+	// PMM - fixed to correct for pitch of 0
+	if (vec[0])
+		yaw = (atan2(vec[1], vec[0]) * (180 / M_PI));
+	else if (vec[1] > 0)
+		yaw = 90;
+	else
+		yaw = 270;
+
+	if (yaw < 0)
+		yaw += 360;
+
+	forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
+	pitch = (atan2(vec[2], forward) * (180 / M_PI));
+
+	if (pitch < 0)
+		pitch += 360;
+
+	vec_x = -pitch;
+	vec_y = yaw;
+	vec_z = 0;
+	
+	return vec;
+}

@@ -421,18 +421,26 @@ float (float thinkst) SUB_CheckRefireFrame =
 	return TRUE;
 };
 
-
-float (float accel, vector dis, float discap) CalcVelocity = 
+static float (float angle) normalize180_helper =
 {
-	local float lendis;	
-	local float vel;
-	
-	lendis = vlen(dis) - discap;
+	angle -= floor( angle / 360) * 360;
+	if ( angle > 180 ) {
+		angle -= 360;
+	}
+	else if ( angle < -180 ) {
+		angle += 360;
+	}
+	return angle;
+}
 
-	vel = 2*accel*lendis;
-	vel = floor(sqrt(vel));
-	return vel;
-};
+vector(vector angle)  Normalize180 = 
+{	
+	angle[0] = normalize180_helper (angle[0]);
+	angle[1] = normalize180_helper (angle[1]);
+	angle[2] = normalize180_helper (angle[2]);
+
+	return angle;
+}
 
 vector (vector a, vector b, vector forward, vector right) ProjectAim =
 {
@@ -717,44 +725,7 @@ vector FindSpawnPoint (vector startpoint, vector Emins, vector Emaxs, vector spa
 	}
 }
 
-vector vectoanglesq2 (vector vec)
-{
-	float forward;
-	float yaw, pitch;
-
-	if (vec[1] == 0 && vec[0] == 0)
-	{
-		if (vec[2] > 0)
-			return '-90 0 0';
-		else
-			return  '-270 0 0';
-	}
-
-	// PMM - fixed to correct for pitch of 0
-	if (vec[0])
-		yaw = (atan2(vec[1], vec[0]) * (180 / M_PI));
-	else if (vec[1] > 0)
-		yaw = 90;
-	else
-		yaw = 270;
-
-	if (yaw < 0)
-		yaw += 360;
-
-	forward = sqrt(vec[0] * vec[0] + vec[1] * vec[1]);
-	pitch = (atan2(vec[2], forward) * (180 / M_PI));
-
-	if (pitch < 0)
-		pitch += 360;
-
-	vec_x = pitch;
-	vec_y = yaw;
-	vec_z = 0;
-	
-	return vec;
-}
-
-void AngleVectors (vector  angles,__inout vector forward,__inout vector right,__inout vector  up)
+void AngleVectors (vector  angles, optional __inout vector forward, optional __inout vector right, optional __inout vector  up)
 {
 	float angle = angles[1] * (M_PI * 2 / 360);
 	float sy = sin(angle);

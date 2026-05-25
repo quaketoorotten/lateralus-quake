@@ -17,8 +17,6 @@
     See file, 'COPYING', for details.
 */
 
-void() SuperDamageSound;
-
 // called by worldspawn
 void() W_Precache =
 {
@@ -155,6 +153,16 @@ void() W_Precache =
 	precache_sound("weapons/ssg/fire_04.wav");	
 	precache_sound("weapons/ssg/click_01.wav");
 	precache_sound("weapons/ssg/clack_01.wav");
+
+	precache_sound("weapons/soulcube/soulcube_shred.wav");	
+	precache_sound("weapons/soulcube/fly_loop_01.wav");	
+	precache_sound("weapons/soulcube/raise_01.wav");	
+	precache_sound("weapons/soulcube/raise_02.wav");	
+	precache_sound("weapons/soulcube/putaway_01.wav");
+	precache_sound("weapons/soulcube/fly_start_02.wav");
+	precache_sound("weapons/soulcube/fly_start_03.wav");
+	precache_sound("weapons/soulcube/energize_01.wav");
+	precache_sound("weapons/soulcube/recharge.wav");
 
 	precache_sound("weapons/wepchg1a.wav");
 	precache_sound("weapons/wepchg1b.wav");
@@ -901,8 +909,8 @@ void()	sbfg_explode1 =	[self.frame,		sbfg_explode1 ]
 
 	if (self.cnt == 3)
 	 	tbspray ();
-	if (self.cnt == 6)
-		self.emiteffectnum = 0;
+	//if (self.cnt == 12)
+		
 	
 	if (self.cnt == 32)
 	{
@@ -935,7 +943,7 @@ void() BecomeExplosionBFG =
 	self.alpha = 1;
 	self.think = sbfg_explode1;
 	self.nextthink = time;
-
+	self.emiteffectnum = 0;
 	//for (float i = 0; i < 10; i++)
 	//	 bfg_spawn_laser (2048);
 };
@@ -966,12 +974,13 @@ void() T_tbTouch =
 	pointparticles (particleeffectnum("EF_EXPLODLIGHT2"), self.origin);
 
 	T_RadiusDamage (self, self.owner, 200, 200, other);
-	GroundShake (self, 0.8, 1.4);
+	GroundShake (self, 0.7, 0.8);
 
 	self.origin = self.origin - 32*normalize(self.velocity);
 
 	self.traileffectnum = 0; 
-	self.emiteffectnum = particleeffectnum("TE_BFG_BIGEXPLOSION2"); 
+	//self.emiteffectnum = particleeffectnum("TE_BFG_BIGEXPLOSION2"); 
+	pointparticles (particleeffectnum("TE_BFG_BIGEXPLOSION2"), self.origin);
 	//pointparticles (particleeffectnum("TE_BFG_BIGEXPLOSION2"), self.movedir);
 
 	BecomeExplosionBFG ();
@@ -1039,7 +1048,7 @@ void(vector dir, vector org, float damage, float damage_lsr, float damage_rad) l
 		CheckDodge(missile.origin, dir, 1000);
 };
 
-float BLACKHOLE_TIMER = 0.5;
+float BLACKHOLE_TIMER = 4.5;
 
 void() blackhole_eat =
 {	
@@ -1331,40 +1340,6 @@ void(vector org, vector vec, vector right, vector up) LaunchLaser =
 		sound(missile, CHAN_BODY, "misc/lasfly.wav", 1, ATTN_STATIC);
 	else
 		sound(missile, CHAN_BODY, "weapons/plasmagun/flight_01.wav", 1, ATTN_STATIC);
-};
-
-void(vector org, vector vec) LaunchMissile =
-{
-	local float speed;	
-
-	newmis = spawn();
-	newmis.owner = self;
-	newmis.movetype = MOVETYPE_FLY;
-	newmis.solid = SOLID_BBOX;
-	newmis.effects = EF_DIMLIGHT;
-	newmis.classname = "spike";
-
-	setmodel (newmis, "progs/laser.mdl");
-	setsize (newmis, '0 0 0', '0 0 0');		
-
-	setorigin (newmis, org);
-	
-	if(self.classname == "monster_tank" || self.classname == "monster_medic" || self.classname == "monster_chick")
-		speed = 800;
-	else if((self.flags & FL_FLY))
-		speed = 1000;
-	else if(self.classname == "player")
-		speed = 1500;
-	else
-		speed = 600;
-
-	newmis.velocity = normalize(vec) * speed;
-	newmis.angles = vectoangles(newmis.velocity);
-
-	newmis.nextthink = time + 5;
-	newmis.think = SUB_Remove;
-
-	sound(newmis, CHAN_BODY, "weapons/rockfly.wav", 1, ATTN_STATIC);
 };
 
 void(vector org, vector dir, float speed = 1000, float slidebox = 0) launch_spike =
