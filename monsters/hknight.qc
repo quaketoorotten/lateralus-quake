@@ -641,7 +641,7 @@ void(float side) ShamClaw =
 
 	delta = self.enemy.origin - self.origin;
 
-	if (vlen(delta) > 120)
+	if (vlen(delta) > 125)
 	{
 		hk_melee ();
 		return;
@@ -837,9 +837,11 @@ void() sham_turret2 = [ self.frame, sham_turret2 ]
 
 void() sham_missile =
 {	
-	if(random() < 0.4 && inShamRange (180))
+	if(random() <= 0.5 && inShamRange (180))
 	{	
-		self.pissed -= 0.6;
+		if (self.pissed)
+			self.pissed -= 0.6;
+		
 		sham_smash1 ();
 		return;
 	}
@@ -1179,11 +1181,17 @@ void() monster_shambler =
 	
 	monster_shambler_cache ();
 	monster_necromancer_cache ();
-
-	if (random () <= 0.3 && world.model != "maps/e1m3.bsp" && world.model != "maps/e1m5.bsp")
+	monster_salamander_cache ();
+	
+	if (random() <= 0.3 && world.model != "maps/e1m3.bsp" && world.model != "maps/e1m5.bsp")
 		spawn_medic ();
-	else
-		spawn_shambler ();
+	else 
+	{
+		if (random () > 0.3)
+			spawn_shambler ();
+		else
+			spawn_salamander ();
+	}
 };
 
 void() monster_shambler2 =

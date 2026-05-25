@@ -641,8 +641,8 @@ void() spawn_sheol =
 	self.solid = SOLID_SLIDEBOX;
 	self.movetype = MOVETYPE_STEP;
 
-	self.health = 680;
-	self.max_health = 680;
+	self.health = 630;
+	self.max_health = 630;
 	self.scale = 1;
 	self.mass = 400;
 

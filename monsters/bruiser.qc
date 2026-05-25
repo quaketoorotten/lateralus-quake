@@ -579,8 +579,8 @@ void() spawn_terminal =
 
 	setmodel(self, "progs/terminal.md3");
 	setsize(self, '-32 -32 0', '32 32 88');
-	self.health = 1300;
-	self.max_health = 1300;
+	self.health = 1100;
+	self.max_health = 1100;
 	self.scale = 0.88;
 	self.mass = 600;
 

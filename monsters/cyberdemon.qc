@@ -481,6 +481,15 @@ static void(entity own) cyb_MissileHitbox =
 	own.nextbumper = e;
 }
 
+static float (float diff) get_diff =
+{
+	if ( diff > 180 ) 
+		diff = 180;
+	else if ( diff < -180 ) 
+		diff = -180;
+	return diff;
+}
+
 static void() cyb_Missilehome =
 {
 	local vector	dir, vtemp;
@@ -489,7 +498,7 @@ static void() cyb_Missilehome =
 	vtemp = targ.origin + '0 0 22';
 
 //	bprint(ftos(self.speed),"\n");
-	if (self.speed > 290)
+	if (self.speed > 275)
 		self.speed *= 0.95;
 	if ((self.enemy.health <= 0))
 	{	
@@ -501,13 +510,33 @@ static void() cyb_Missilehome =
 		return;
 	}
 
-	dir = normalize(vtemp - self.origin);
-	
-	self.velocity = dir * self.speed;
+	vector  dirAng, nose, seekPos;
+	vector diff;
 
-	self.angles = vectoangles(self.velocity);
+	nose = self.origin;
+	seekPos = self.enemy.origin + self.enemy.view_ofs;
+	
+	dir = seekPos - nose;
+	dirAng = vectoangles(normalize(dir));
+	dirAng [0] = -dirAng[0]; // im not sure why 
+
+	diff = dirAng - self.angles;
+	diff = Normalize180(diff);
+
+	diff[0] = get_diff(diff[0]);
+	diff[1] = get_diff(diff[1]);
+	diff[2] = get_diff(diff[2]);
+
+	self.angles += diff;
+
+	vector fwd;
+	AngleVectors(self.angles, fwd);
+
+	self.velocity = fwd * self.speed;
+
 	self.nextthink = time;
 	self.think = cyb_Missilehome;	
+
 	GroundShake (self, 0.4, 0.1);
 };
 

@@ -236,7 +236,6 @@ void() soul_die2 = [ $exp, soul_run1 ]
 	pointparticles (particleeffectnum("TE_EXPLOSION_BLAST"), self.origin, self.origin, 2);
 	pointparticles (particleeffectnum("TE_EXPLOD"), self.origin, self.origin, 1);
 
-	sound(self, CHAN_VOICE, "blob/death1.wav", 1, ATTN_NORM);
 	self.origin = self.origin - 8*normalize(self.velocity);
 	remove(self);
 };

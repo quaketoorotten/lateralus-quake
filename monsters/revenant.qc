@@ -23,37 +23,75 @@ KNIGHT
 
 ==============================================================================
 */
+.vector rndAng;
 
 void() revenant_run1;
 void() revenant_idle_sound;
 
+static float (float diff) get_diff =
+{
+	if ( diff > 180 ) 
+		diff = 180;
+	else if ( diff < -180 ) 
+		diff = -180;
+	return diff;
+}
+
 void() hknight_MissileHome =
 {
-	local vector	dir, vtemp;
-	local entity 	targ = self.enemy;
-	local float		flytime = self.ltime;
+	vector	dir, seekPos;
+	vector  dirAng, nose;
+	float frac;
+	vector diff;
+	float i = 0;
 
-	vtemp = targ.origin + targ.view_ofs + targ.velocity *0.2;
-	self.speed *= 0.98;
-	
+	self.speed -= 0.2;
 	if ((self.speed < 60) || (self.enemy.health <= 0))
 	{	
-		self.nextthink = 0.1 + time;
+		self.nextthink = time + 0.1;
 		self.think = SUB_Remove;
 		return;
 	}
 
-	dir = normalize(vtemp - self.origin);
-	
-	self.velocity = dir * ceil(self.speed);
+	nose = self.origin;
+	seekPos = self.enemy.origin + self.enemy.view_ofs;
 
-	self.angles = vectoanglesq2(targ.origin - self.origin + targ.view_ofs);
-	self.nextthink = time + flytime;
+	dir = seekPos - nose;
+	dirAng = vectoangles(normalize(dir));
+	dirAng [0] = -dirAng[0]; // im not sure why 
+
+	if ( self.ltime < time ) 
+	{
+		self.rndAng[ 0 ] = 15 * crandom();
+		self.rndAng[ 1 ] = 15 * crandom();
+		self.rndAng[ 2 ] = 15 * crandom();
+		self.ltime = time + 1.25;
+	}
+
+	// make it more accurate as it gets closer
+	frac = vlen(dir) / 256;
+	if ( frac > 1) 
+		frac = 1;
+
+	diff = dirAng - self.angles + self.rndAng * frac;
+	diff = Normalize180(diff);
+
+	diff[0] = get_diff(diff[0]);
+	diff[1] = get_diff(diff[1]);
+	diff[2] = get_diff(diff[2]);
+
+	self.angles += diff;
+
+	vector fwd;
+	AngleVectors(self.angles, fwd);
+
+	self.velocity = fwd * self.speed;
+
+	self.nextthink = time;
 	self.think = hknight_MissileHome;	
 };
 
-
- void() knightspike_touch =
+void() knightspike_touch =
 {
     if (other == self.owner)
     {
@@ -102,7 +140,7 @@ static void(entity own) rev_MissileHitbox =
 	e = spawn();
 	setsize(e, '-10 -10 -10', '10 10 10');
 	setorigin(e, own.origin);
-	e.health = 75;
+	e.health = 65;
 	e.takedamage = DAMAGE_AIM;
 	e.solid = SOLID_CORPSE;
 	e.classname = "homing_missilebbox";
@@ -119,30 +157,26 @@ static void(entity own) rev_MissileHitbox =
 static void() rev_MissileDie =
 {	
 	self.th_die = SUB_Null;
-	remove(self.owner);
+
+	if (!(self.owner.flags & FL_MONSTER))
+		remove(self.owner);
+
 	self.origin = self.origin - 32* normalize(self.velocity);
-	T_RadiusDamage(self, self.owner, 30, 80, self.owner);
+	
 	BecomeExplosion2 ();
 };
 
 void(vector org, vector dir) launch_hknightMissile =
 {
-	local float 	flytime;
-	
 	newmis = spawn ();
 	newmis.owner = self;
 	newmis.classname = "knightspike";
 	newmis.movetype = MOVETYPE_FLY;
 	newmis.solid = SOLID_SLIDEBOX;
-
-	flytime = vlen(dir) * 0.002;
-	if (flytime < 0.1)
-		flytime = 0.1;
-
+	newmis.rndAng = 0;
 	newmis.angles = vectoangles(dir);
-		
-	newmis.ltime = flytime;
-	newmis.nextthink = 0.4 + time;
+	newmis.ltime = time;
+	newmis.nextthink = time;
 	newmis.think = hknight_MissileHome;
 	newmis.enemy = self.enemy;
 	setmodel (newmis, "progs/missile.mdl");
